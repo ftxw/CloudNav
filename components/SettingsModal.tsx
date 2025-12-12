@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { X, Save, Bot, Key, Globe, Sparkles, PauseCircle, Wrench, Box, Copy, Check, List, GripVertical, Filter } from 'lucide-react';
-import { AIConfig, LinkItem, Category, DEFAULT_CATEGORIES } from '../types';
+import { AIConfig, LinkItem, Category } from '../types';
 import { generateLinkDescription } from '../services/geminiService';
 
 interface SettingsModalProps {
@@ -10,11 +10,12 @@ interface SettingsModalProps {
   config: AIConfig;
   onSave: (config: AIConfig) => void;
   links: LinkItem[];
+  categories: Category[];
   onUpdateLinks: (links: LinkItem[]) => void;
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ 
-    isOpen, onClose, config, onSave, links, onUpdateLinks 
+    isOpen, onClose, config, onSave, links, categories, onUpdateLinks 
 }) => {
   const [activeTab, setActiveTab] = useState<'ai' | 'tools' | 'links'>('ai');
   const [localConfig, setLocalConfig] = useState<AIConfig>(config);
@@ -493,8 +494,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 <option value="all">所有分类</option>
                                 {availableCategories.map(catId => (
                                     <option key={catId} value={catId}>
-                                        {/* Try to match name from defaults or just use ID */}
-                                        {DEFAULT_CATEGORIES.find(c => c.id === catId)?.name || catId}
+                                        {categories.find(c => c.id === catId)?.name || catId}
                                     </option>
                                 ))}
                              </select>
@@ -522,7 +522,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     <div className="text-xs text-slate-400 truncate">{link.url}</div>
                                 </div>
                                 <div className="text-xs text-slate-400 px-2 bg-slate-200 dark:bg-slate-800 rounded">
-                                     {DEFAULT_CATEGORIES.find(c => c.id === link.categoryId)?.name || link.categoryId}
+                                     {categories.find(c => c.id === link.categoryId)?.name || link.categoryId}
                                 </div>
                             </div>
                         ))}

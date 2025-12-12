@@ -571,6 +571,7 @@ function App() {
         config={aiConfig}
         onSave={handleSaveAIConfig}
         links={links}
+        categories={categories}
         onUpdateLinks={(newLinks) => updateData(newLinks, categories)}
       />
 
