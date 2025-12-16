@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { X, Save, Bot, Key, Globe, Sparkles, PauseCircle, Wrench, Box, Copy, Check, List, GripVertical, Filter, LayoutTemplate, RefreshCw, Info, Download, Sidebar, Keyboard } from 'lucide-react';
+import { X, Save, Bot, Key, Globe, Sparkles, PauseCircle, Wrench, Box, Copy, Check, List, GripVertical, Filter, LayoutTemplate, RefreshCw, Info, Download, Sidebar, Keyboard, MousePointerClick } from 'lucide-react';
 import { AIConfig, LinkItem, Category, SiteSettings } from '../types';
 import { generateLinkDescription } from '../services/geminiService';
 
@@ -27,7 +27,6 @@ const getRandomColor = () => {
 const generateSvgIcon = (text: string, color1: string, color2: string) => {
     const char = (text && text.length > 0 ? text.charAt(0) : 'C').toUpperCase();
     
-    // 生成渐变 ID，防止多个 SVG 在同一页面导致 ID 冲突虽然这里是 base64 但是个好习惯
     const gradientId = 'g_' + Math.random().toString(36).substr(2, 9);
 
     const svg = `
@@ -86,13 +85,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const [copiedStates, setCopiedStates] = useState<{[key: string]: boolean}>({});
 
-  // 生成一组随机图标
   const updateGeneratedIcons = (text: string) => {
       const newIcons: string[] = [];
-      // 生成 6 个不同的随机样式
       for (let i = 0; i < 6; i++) {
           const c1 = getRandomColor();
-          // 第二个颜色在色相上偏移 30-60 度，形成邻近色渐变
           const h2 = (parseInt(c1.split(',')[0].split('(')[1]) + 30 + Math.random() * 30) % 360;
           const c2 = `hsl(${h2}, 70%, 50%)`;
           newIcons.push(generateSvgIcon(text, c1, c2));
@@ -110,7 +106,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           cardStyle: siteSettings?.cardStyle || 'detailed'
       };
       setLocalSiteSettings(safeSettings);
-      // 只有当生成的图标为空时，才自动生成，避免覆盖
       if (generatedIcons.length === 0) {
           updateGeneratedIcons(safeSettings.navTitle);
       }
@@ -199,8 +194,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       URL.revokeObjectURL(url);
   };
 
-  // --- Drag and Drop Logic ---
-
   const handleDragStart = (e: React.DragEvent, id: string) => {
       setDraggedId(id);
       e.dataTransfer.effectAllowed = "move";
@@ -232,14 +225,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       return links.filter(l => l.categoryId === filterCategory);
   }, [links, filterCategory]);
 
-  // Extension Generators - Dynamic based on settings
+  // Extension Generators
   const getManifestJson = () => {
     const json: any = {
         manifest_version: 3,
         name: localSiteSettings.navTitle || "CloudNav Assistant",
-        version: "1.3",
-        // Added 'storage' for cache, 'favicon' for reliable icons
-        permissions: ["activeTab", "scripting", "sidePanel", "storage", "favicon"], 
+        version: "1.4",
+        permissions: ["activeTab", "scripting", "sidePanel", "storage", "favicon", "contextMenus"],
+        background: {
+            service_worker: "background.js"
+        },
         action: {
             default_popup: "popup.html",
             default_title: `Save to ${localSiteSettings.navTitle || 'CloudNav'}`
@@ -272,6 +267,28 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     
     return JSON.stringify(json, null, 2);
   };
+
+  const extBackgroundJs = `// background.js - Handles Context Menus and Lifecycle
+
+chrome.runtime.onInstalled.addListener(() => {
+  // Create a context menu item to open the side panel
+  chrome.contextMenus.create({
+    id: 'openSidePanel',
+    title: '打开侧边栏 (Open Side Panel)',
+    contexts: ['all']
+  });
+});
+
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === 'openSidePanel') {
+    // Open the side panel in the current window
+    chrome.sidePanel.open({ windowId: tab.windowId });
+  }
+});
+
+// Note: The keyboard shortcut defined in manifest (_execute_side_panel) 
+// handles the toggle natively in Chrome.
+`;
 
   const extPopupHtml = `<!DOCTYPE html>
 <html>
@@ -333,12 +350,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const titleInput = document.getElementById('page-title');
   const iconImg = document.getElementById('page-icon');
 
-  // Helper to render categories and check duplicates
   const renderUI = (data, currentTab) => {
       const categories = data.categories || [];
       const links = data.links || [];
 
-      // Populate Dropdown
       catSelect.innerHTML = '';
       if (categories.length === 0) {
            const opt = document.createElement('option');
@@ -356,7 +371,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       
       if (categories.some(c => c.id === 'common')) catSelect.value = 'common';
 
-      // Check Duplicates
       const normalize = u => u ? u.toLowerCase().trim().replace(/\\/$/, '') : '';
       const currentUrl = normalize(currentTab.url);
       const existing = links.find(l => normalize(l.url) === currentUrl);
@@ -378,25 +392,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     
-    // 1. Render Page Info
     titleInput.value = tab.title;
     if (tab.favIconUrl) {
-       // Prefer chrome native favicon API if available in popup
-       // But popup usually relies on tabs API for current tab info
        iconImg.src = tab.favIconUrl;
        iconImg.style.display = 'block';
     }
 
-    // 2. Load Data (Cache First Strategy)
     try {
-        // Step A: Check Local Storage
         const cached = await chrome.storage.local.get(CACHE_KEY);
         if (cached[CACHE_KEY]) {
-            console.log("Loaded from cache");
             renderUI(cached[CACHE_KEY], tab);
-            // Optional: Background refresh could go here if needed, but we'll stick to cache for speed
         } else {
-            // Step B: Fetch from Network if no cache
             saveBtn.textContent = "正在连接...";
             const res = await fetch(\`\${CONFIG.apiBase}/api/storage\`, {
                 method: 'GET',
@@ -404,22 +410,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
             if (!res.ok) throw new Error('Connect Error');
             const data = await res.json();
-            
-            // Save to cache
             await chrome.storage.local.set({ [CACHE_KEY]: data });
             renderUI(data, tab);
         }
-
     } catch (e) {
         console.error(e);
-        // Fallback UI
         catSelect.innerHTML = '<option value="common">默认分类 (离线)</option>';
         saveBtn.textContent = "尝试保存";
         saveBtn.disabled = false;
         statusEl.textContent = "无法加载数据，将使用默认分类";
     }
 
-    // 3. Save Handler
     saveBtn.addEventListener('click', async () => {
       const originalText = saveBtn.textContent;
       saveBtn.disabled = true;
@@ -447,19 +448,14 @@ document.addEventListener('DOMContentLoaded', async () => {
           statusEl.style.color = '#16a34a';
           saveBtn.textContent = '保存成功';
 
-          // Update Local Cache manually to reflect the new link immediately
           const cached = await chrome.storage.local.get(CACHE_KEY);
           if (cached[CACHE_KEY]) {
               const newData = cached[CACHE_KEY];
-              // Add new link to top
               if (responseData.link) {
-                  // Remove if exists (update)
                   newData.links = newData.links.filter(l => l.url !== responseData.link.url);
                   newData.links.unshift(responseData.link);
                   await chrome.storage.local.set({ [CACHE_KEY]: newData });
               }
-          } else {
-              // If no cache, force fetch next time
           }
 
           setTimeout(() => window.close(), 1000);
@@ -501,9 +497,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 --muted: #94a3b8;
             }
         }
-        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); padding-bottom: 20px; }
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); padding-bottom: 20px; width: 100%; box-sizing: border-box; }
         
-        /* Search Bar */
         .header { position: sticky; top: 0; padding: 10px 12px; background: var(--bg); border-bottom: 1px solid var(--border); z-index: 10; display: flex; gap: 8px; }
         .search-input { flex: 1; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--hover); color: var(--text); outline: none; box-sizing: border-box; font-size: 13px; }
         .search-input:focus { border-color: var(--accent); }
@@ -512,46 +507,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         .refresh-btn:hover { color: var(--accent); border-color: var(--accent); }
         .refresh-btn:active { transform: scale(0.95); }
         .rotating { animation: spin 1s linear infinite; }
-        
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
-        /* Accordion Content */
         .content { padding: 4px; }
-        
         .cat-group { margin-bottom: 2px; }
-        
         .cat-header { 
-            padding: 8px 10px; 
-            font-size: 13px; 
-            font-weight: 600; 
-            color: var(--text); 
-            cursor: pointer; 
-            display: flex; 
-            items-center; 
-            gap: 8px; 
-            border-radius: 6px;
-            user-select: none;
-            transition: background 0.1s;
+            padding: 8px 10px; font-size: 13px; font-weight: 600; color: var(--text); 
+            cursor: pointer; display: flex; items-center; gap: 8px; border-radius: 6px;
+            user-select: none; transition: background 0.1s;
         }
         .cat-header:hover { background: var(--hover); }
-        
         .cat-arrow { width: 14px; height: 14px; color: var(--muted); transition: transform 0.2s; }
         .cat-header.active .cat-arrow { transform: rotate(90deg); color: var(--accent); }
         
+        /* Ensure links are hidden by default */
         .cat-links { display: none; padding-left: 8px; margin-bottom: 8px; }
         .cat-header.active + .cat-links { display: block; }
         
-        /* Links */
         .link-item { display: flex; items-center; gap: 8px; padding: 6px 8px; border-radius: 6px; text-decoration: none; color: var(--text); transition: background 0.1s; border-left: 2px solid transparent; }
         .link-item:hover { background: var(--hover); border-left-color: var(--accent); }
-        
         .link-icon { width: 16px; height: 16px; flex-shrink: 0; display: flex; items-center; justify-content: center; overflow: hidden; }
         .link-icon img { width: 100%; height: 100%; object-fit: contain; }
-        
         .link-info { min-width: 0; flex: 1; }
         .link-title { font-size: 13px; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; }
         
-        /* Empty States */
         .empty { text-align: center; padding: 20px; color: var(--muted); font-size: 12px; }
         .loading { display: flex; justify-content: center; padding: 40px; color: var(--accent); font-size: 12px; }
     </style>
@@ -583,8 +562,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     let allLinks = [];
     let allCategories = [];
-    // Store expanded categories
-    let expandedCats = new Set();
+    let expandedCats = new Set(); // Stores IDs of currently expanded categories
 
     const getArrowIcon = () => {
         return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="cat-arrow"><polyline points="9 18 15 12 9 6"></polyline></svg>';
@@ -613,7 +591,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
-    // Attach global click listener for dynamic elements
     container.addEventListener('click', (e) => {
         const header = e.target.closest('.cat-header');
         if (header) {
@@ -626,7 +603,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         let html = '';
         let hasContent = false;
         
-        // If searching, auto-expand all relevant categories
         const isSearching = q.length > 0;
 
         allCategories.forEach(cat => {
@@ -642,7 +618,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (catLinks.length === 0) return;
             hasContent = true;
 
-            // Accordion Logic: Expand if user opened it previously OR if searching
+            // Only expand if specifically clicked (in expandedCats) OR if user is searching
             const isOpen = expandedCats.has(cat.id) || isSearching;
             const activeClass = isOpen ? 'active' : '';
 
@@ -656,9 +632,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             \`;
             
             catLinks.forEach(link => {
-                // Use Chrome Native Favicon API
                 const iconSrc = getFaviconUrl(link.url);
-                
                 html += \`
                     <a href="\${link.url}" target="_blank" class="link-item">
                         <div class="link-icon"><img src="\${iconSrc}" /></div>
@@ -752,15 +726,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     </div>
   );
 
-  // Download Helper for Icon
   const handleDownloadIcon = async () => {
      const iconUrl = localSiteSettings.favicon;
      if (!iconUrl) return;
 
      try {
-         // Create an image to render the data (handles both URL and Base64)
          const img = new Image();
-         img.crossOrigin = "anonymous"; // Try to handle CORS if it's a URL
+         img.crossOrigin = "anonymous";
          img.src = iconUrl;
 
          await new Promise((resolve, reject) => {
@@ -768,17 +740,14 @@ document.addEventListener('DOMContentLoaded', async () => {
              img.onerror = reject;
          });
 
-         // Create canvas to convert to PNG
          const canvas = document.createElement('canvas');
          canvas.width = 128;
          canvas.height = 128;
          const ctx = canvas.getContext('2d');
          if (!ctx) throw new Error('Canvas error');
 
-         // Draw image
          ctx.drawImage(img, 0, 0, 128, 128);
 
-         // Convert to Blob
          canvas.toBlob((blob) => {
              if (!blob) {
                  alert("生成图片失败");
@@ -796,7 +765,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
      } catch (e) {
          console.error(e);
-         // Fallback for CORS issues where Canvas becomes tainted or load fails
          alert("自动转换 PNG 失败 (可能是跨域限制)。\n\n请尝试右键点击下方的预览图片，选择 '图片另存为...' 保存。");
      }
   };
@@ -903,9 +871,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     </div>
                                 </div>
                             </div>
-                            
-                            {/* Card Style Setting Removed as requested */}
-
                         </div>
                     </div>
                 )}
@@ -1115,7 +1080,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 <ol className="list-decimal list-inside text-sm text-slate-600 dark:text-slate-400 space-y-2 leading-relaxed">
                                     <li>在电脑上新建文件夹 <code className="bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 font-mono text-xs">CloudNav-Ext</code>。</li>
                                     <li><strong>[重要]</strong> 将下方图标保存为 <code className="bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 font-mono text-xs">icon.png</code>。</li>
-                                    <li>在文件夹中创建以下 5 个文件。 <span className="text-red-500 dark:text-red-400 font-bold">注意：必须下载所有文件，特别是 sidebar.html，否则会报错。</span></li>
+                                    <li>在文件夹中创建以下 6 个文件。<span className="text-red-500 dark:text-red-400 font-bold"> 请务必下载所有文件并覆盖旧版本。</span></li>
                                     <li>
                                         打开浏览器扩展管理页面 
                                         {browserType === 'chrome' ? (
@@ -1124,13 +1089,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                                             <> (Firefox: <code className="select-all bg-white dark:bg-slate-900 px-1 rounded">about:debugging</code>)</>
                                         )}。
                                     </li>
-                                    {browserType === 'chrome' && <li>开启 "<strong>开发者模式</strong>"。</li>}
                                     <li>点击 "<strong>加载已解压的扩展程序</strong>"，选择该文件夹。</li>
-                                    <li><strong className="text-blue-600 dark:text-blue-400">新功能:</strong> 按下 <code className="bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 font-mono text-xs">Ctrl+Shift+E</code> 即可呼出侧边栏导航！</li>
                                 </ol>
-                                <div className="mt-3 text-xs p-2 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 rounded border border-amber-200 dark:border-amber-900/50 space-y-2">
-                                    <div><strong>常见错误:</strong> 如果提示 <em>"Side panel file path must exist"</em>，说明您忘记创建或错误命名了 <code>sidebar.html</code> 文件。请确保文件夹内包含所有5个代码文件。</div>
-                                    <div className="text-amber-800 dark:text-amber-300"><strong>快捷键无效?</strong> 如果按 <code className="font-mono">Ctrl+Shift+E</code> 没反应，请前往 <a href="chrome://extensions/shortcuts" className="underline" target="_blank">chrome://extensions/shortcuts</a> 手动绑定。</div>
+                                
+                                <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 rounded border border-amber-200 dark:border-amber-900/50 text-sm space-y-2">
+                                    <div className="font-bold flex items-center gap-2"><Keyboard size={16}/> 快捷键 Ctrl+Shift+E 设置指南:</div>
+                                    <p>如果按下快捷键打开的是“保存弹窗”而不是“侧边栏”，请前往 Chrome 快捷键设置 (<code className="bg-white/50 dark:bg-black/20 px-1 rounded">chrome://extensions/shortcuts</code>) 检查。</p>
+                                    <p>务必将快捷键绑定到 <strong>"Open Side Panel (打开侧边栏)"</strong> 这一项，而不是 "激活扩展程序"。</p>
+                                    <div className="text-xs text-slate-500 mt-2">提示：现在您也可以在网页上 <strong>右键 -> 打开侧边栏</strong>。</div>
                                 </div>
                             </div>
 
@@ -1157,6 +1123,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     <Sidebar size={18} className="text-purple-500"/> 核心配置
                                 </div>
                                 {renderCodeBlock('manifest.json', getManifestJson())}
+                                {renderCodeBlock('background.js', extBackgroundJs)}
                                 
                                 <div className="flex items-center gap-2 text-sm font-medium text-slate-800 dark:text-slate-200 pt-2 border-t border-slate-100 dark:border-slate-700">
                                     <Save size={18} className="text-blue-500"/> 弹窗保存功能 (Popup)
