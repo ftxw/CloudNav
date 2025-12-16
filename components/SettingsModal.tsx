@@ -232,9 +232,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const getManifestJson = () => {
     const json: any = {
         manifest_version: 3,
-        name: localSiteSettings.navTitle || "CloudNav Assistant",
-        version: "2.0", // Major version bump
-        description: "CloudNav 侧边栏导航与书签助手",
+        // 添加 v3.0 标识，强制浏览器识别为新应用
+        name: (localSiteSettings.navTitle || "CloudNav") + " Pro",
+        version: "3.0",
+        description: "CloudNav 侧边栏导航 - 极速版",
         permissions: ["activeTab", "scripting", "sidePanel", "storage", "favicon"],
         background: {
             service_worker: "background.js"
@@ -257,7 +258,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             },
             "description": "打开保存弹窗 (Open Save Popup)"
           },
-          // 使用 115 插件完全一致的原生命令方案
+          // 这是 Chrome 原生侧边栏开关命令，必须精确匹配此名称
           "_execute_side_panel": {
             "suggested_key": {
               "default": "Ctrl+Shift+E",
@@ -280,18 +281,22 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     return JSON.stringify(json, null, 2);
   };
 
-  const extBackgroundJs = `// background.js - CloudNav Assistant
+  const extBackgroundJs = `// background.js - CloudNav Assistant v3.0
 
-// 使用 Chrome 原生命令 _execute_side_panel 处理开关，无需额外逻辑。
-// 这确保了最原生、最流畅的体验（与 115 插件一致）。
-
+// 安装时进行初始化配置，防止侧边栏被禁用
 chrome.runtime.onInstalled.addListener(() => {
-  console.log('CloudNav Extension Installed (Native Mode)');
+  console.log('CloudNav Pro Installed');
   
-  // 确保侧边栏不会在点击图标时打开，而是由 _execute_side_panel 或快捷键控制
-  // 点击图标应打开保存弹窗 (Popup)
+  // 1. 设置点击图标的行为：打开 Popup (保存页面)
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false })
-    .catch((error) => console.error("Panel behavior set failed:", error));
+    .catch((error) => console.error("setPanelBehavior failed:", error));
+
+  // 2. 强制启用侧边栏并指向 sidebar.html
+  // 这确保了 _execute_side_panel 命令知道要打开什么
+  chrome.sidePanel.setOptions({
+      enabled: true,
+      path: 'sidebar.html'
+  }).catch((error) => console.error("setOptions failed:", error));
 });
 `;
 
@@ -1141,9 +1146,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                                             <> (Firefox: <code className="select-all bg-white dark:bg-slate-900 px-1 rounded">about:debugging</code>)</>
                                         )}。
                                     </li>
-                                    <li><strong>[必须]</strong> 先点击旧版 CloudNav 插件的 "<strong>移除</strong>" 按钮。</li>
-                                    <li><strong>[必须]</strong> 重新点击 "<strong>加载已解压的扩展程序</strong>" 选择文件夹。</li>
-                                    <li><strong>[最后]</strong> 前往 <code className="select-all bg-white dark:bg-slate-900 px-1 rounded">chrome://extensions/shortcuts</code> 绑定快捷键，此时应能看到标准选项。</li>
+                                    <li className="text-blue-600 font-bold">操作关键点：</li>
+                                    <li>1. 点击旧版 CloudNav 插件的 "<strong>移除</strong>" 按钮 (不要只点刷新)。</li>
+                                    <li>2. 彻底关闭并重新打开浏览器 (清除缓存)。</li>
+                                    <li>3. 重新点击 "<strong>加载已解压的扩展程序</strong>" 选择新文件夹。</li>
+                                    <li>4. 前往快捷键设置页面绑定快捷键。</li>
                                 </ol>
                                 
                                 <div className="mt-4 mb-4">
@@ -1158,9 +1165,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 </div>
                                 
                                 <div className="p-3 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 rounded border border-amber-200 dark:border-amber-900/50 text-sm space-y-2">
-                                    <div className="font-bold flex items-center gap-2"><Keyboard size={16}/> 快捷键配置:</div>
-                                    <p>新版已采用原生 (Native) 模式，与 115 插件机制完全一致。</p>
-                                    <p className="text-xs font-semibold">请务必移除旧插件后重新加载，否则快捷键配置不会更新。</p>
+                                    <div className="font-bold flex items-center gap-2"><Keyboard size={16}/> 强制缓存清理:</div>
+                                    <p>Chrome 对快捷键缓存非常顽固。<strong>必须先移除旧版插件</strong>，重启浏览器，再加载新版，才能确保快捷键选项出现。</p>
                                 </div>
                             </div>
 
