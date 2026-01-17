@@ -322,7 +322,7 @@ function App() {
             },
             body: JSON.stringify({ links, categories, settings: siteSettings })
         });
-        
+
         if (response.ok) {
             setAuthToken(password);
             localStorage.setItem(AUTH_KEY, password);
@@ -334,6 +334,12 @@ function App() {
       } catch (e) {
           return false;
       }
+  };
+
+  const handleLogout = () => {
+      setAuthToken('');
+      localStorage.removeItem(AUTH_KEY);
+      setSyncStatus('idle');
   };
 
   const handleImportConfirm = (newLinks: LinkItem[], newCategories: Category[]) => {
@@ -876,7 +882,11 @@ function App() {
               {darkMode ? <Sun size={18} /> : <Moon size={18} />}
             </button>
 
-            {!authToken && (
+            {authToken ? (
+                <button onClick={handleLogout} className="hidden sm:flex items-center gap-2 bg-slate-200 dark:bg-slate-700 px-3 py-1.5 rounded-full text-xs font-medium">
+                    <Cloud size={14} /> 退出
+                </button>
+            ) : (
                 <button onClick={() => setIsAuthOpen(true)} className="hidden sm:flex items-center gap-2 bg-slate-200 dark:bg-slate-700 px-3 py-1.5 rounded-full text-xs font-medium">
                     <Cloud size={14} /> 登录
                 </button>

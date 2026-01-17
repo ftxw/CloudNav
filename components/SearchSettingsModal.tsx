@@ -71,9 +71,9 @@ const SearchSettingsModal: React.FC<SearchSettingsModalProps> = ({
         // 尝试解析域名
         const urlObj = new URL(normalizedUrl);
         const origin = urlObj.origin;
-        
-        // 使用 Google 的 favicon 服务获取图标
-        const newIconUrl = `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=${encodeURIComponent(origin)}&size=128`;
+
+        // 使用 favicon.org.cn 服务获取图标
+        const newIconUrl = `https://favicon.org.cn/get.php?url=${encodeURIComponent(origin)}&size=128&key=usr-09b4268ccbf0b297611dc1a02fde7f739eec7ac3`;
         
         setNewIcon(newIconUrl);
       } catch (e) {
