@@ -73,9 +73,9 @@ export interface SearchEngine {
 
 export const DEFAULT_SEARCH_ENGINES: SearchEngine[] = [
     { id: 'local', name: '站内', url: '', icon: 'Search' },
-    { id: 'google', name: 'Google', url: 'https://www.google.com/search?q=', icon: 'https://www.google.com/favicon.ico' },
-    { id: 'bing', name: '必应', url: 'https://www.bing.com/search?q=', icon: 'https://www.bing.com/favicon.ico' },
-    { id: 'baidu', name: '百度', url: 'https://www.baidu.com/s?wd=', icon: 'https://www.baidu.com/favicon.ico' },
-    { id: 'github', name: 'GitHub', url: 'https://github.com/search?q=', icon: 'https://github.com/favicon.ico' },
-    { id: 'bilibili', name: 'B站', url: 'https://search.bilibili.com/all?keyword=', icon: 'https://www.bilibili.com/favicon.ico' },
+    { id: 'google', name: 'Google', url: 'https://www.google.com/search?q=', icon: 'https://favicon.org.cn/get.php?url=https://www.google.com&size=128&key=usr-09b4268ccbf0b297611dc1a02fde7f739eec7ac3' },
+    { id: 'bing', name: '必应', url: 'https://www.bing.com/search?q=', icon: 'https://favicon.org.cn/get.php?url=https://www.bing.com&size=128&key=usr-09b4268ccbf0b297611dc1a02fde7f739eec7ac3' },
+    { id: 'baidu', name: '百度', url: 'https://www.baidu.com/s?wd=', icon: 'https://favicon.org.cn/get.php?url=https://www.baidu.com&size=128&key=usr-09b4268ccbf0b297611dc1a02fde7f739eec7ac3' },
+    { id: 'github', name: 'GitHub', url: 'https://github.com/search?q=', icon: 'https://favicon.org.cn/get.php?url=https://github.com&size=128&key=usr-09b4268ccbf0b297611dc1a02fde7f739eec7ac3' },
+    { id: 'bilibili', name: 'B站', url: 'https://search.bilibili.com/all?keyword=', icon: 'https://favicon.org.cn/get.php?url=https://www.bilibili.com&size=128&key=usr-09b4268ccbf0b297611dc1a02fde7f739eec7ac3' },
 ];

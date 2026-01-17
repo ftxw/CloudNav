@@ -243,8 +243,13 @@ const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
                         <button onClick={() => openMerge(cat.id)} className="p-1.5 text-slate-400 hover:text-purple-500 hover:bg-slate-200 dark:hover:bg-slate-600 rounded" title="合并到其他分类">
                             <Merge size={14} />
                         </button>
-                        <button 
-                        onClick={() => { if(confirm(`确定删除"${cat.name}"分类吗？该分类下的书签将移动到"常用推荐"。`)) onDeleteCategory(cat.id); }}
+                        <button
+                        onClick={() => {
+                            const linkCount = links.filter(l => l.categoryId === cat.id).length;
+                            if(confirm(`确定删除"${cat.name}"分类吗？该分类下的${linkCount}个链接将一并删除，此操作不可恢复。`)) {
+                                onDeleteCategory(cat.id);
+                            }
+                        }}
                         className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-slate-200 dark:hover:bg-slate-600 rounded"
                         title="删除"
                         >

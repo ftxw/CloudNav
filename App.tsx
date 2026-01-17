@@ -60,8 +60,11 @@ function App() {
       favicon: '',
       cardStyle: 'detailed'
   });
-  
+
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
+  // Search Engine Selector State
+  const [showEngineSelector, setShowEngineSelector] = useState(false);
 
   // Context Menu State
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, link: LinkItem | null } | null>(null);
@@ -119,6 +122,7 @@ function App() {
   const isAutoScrollingRef = useRef(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
+  const searchEngineSelectorRef = useRef<HTMLDivElement>(null);
 
   // --- Helpers ---
 
@@ -247,15 +251,20 @@ function App() {
           if (contextMenu && contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
              setContextMenu(null);
           }
+          // Close search engine selector when clicking outside
+          if (showEngineSelector && searchEngineSelectorRef.current && !searchEngineSelectorRef.current.contains(e.target as Node)) {
+              setShowEngineSelector(false);
+          }
       };
-      
+
       const handleScroll = () => {
          if (contextMenu) setContextMenu(null);
+         if (showEngineSelector) setShowEngineSelector(false);
       };
 
       window.addEventListener('click', handleClickOutside);
-      window.addEventListener('scroll', handleScroll, true); 
-      
+      window.addEventListener('scroll', handleScroll, true);
+
       const handleGlobalContextMenu = (e: MouseEvent) => {
           if (contextMenu) {
               e.preventDefault();
@@ -433,8 +442,7 @@ function App() {
   const handleDeleteCategory = (catId: string) => {
       if (!authToken) { setIsAuthOpen(true); return; }
       const newCats = categories.filter(c => c.id !== catId);
-      const targetId = 'common'; 
-      const newLinks = links.map(l => l.categoryId === catId ? { ...l, categoryId: targetId } : l);
+      const newLinks = links.filter(l => l.categoryId !== catId);
       if (newCats.length === 0) newCats.push(DEFAULT_CATEGORIES[0]);
       updateData(newLinks, newCats);
   };
@@ -836,21 +844,52 @@ function App() {
                 )}
 
                 {/* Search Input */}
-                <form onSubmit={handleSearchSubmit} className="flex-1 relative flex items-center group">
-                    {searchMode === 'external' && (
-                        <button
-                            type="button"
-                            onClick={() => setIsSearchSettingsOpen(true)}
-                            className="absolute left-3 z-10 w-8 h-8 rounded-full bg-white dark:bg-slate-700 shadow-md border border-slate-200 dark:border-slate-600 hover:scale-105 transition-transform flex items-center justify-center overflow-hidden"
-                            title="切换搜索引擎"
-                        >
-                            {activeExternalEngine?.icon?.startsWith('http') ? (
-                                <img src={activeExternalEngine.icon} className="w-6 h-6 rounded-full object-cover" />
-                            ) : (
-                                <Search size={16} className="text-slate-600 dark:text-slate-400" />
-                            )}
-                        </button>
-                    )}
+                <div ref={searchEngineSelectorRef} className="flex-1 relative flex items-center group">
+                    <form onSubmit={handleSearchSubmit} className="w-full relative flex items-center">
+                        {searchMode === 'external' && (
+                            <>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowEngineSelector(!showEngineSelector)}
+                                    className="absolute left-3 z-10 flex items-center justify-center hover:scale-105 transition-transform"
+                                    title="切换搜索引擎"
+                                >
+                                    {activeExternalEngine?.icon?.startsWith('http') ? (
+                                        <img src={activeExternalEngine.icon} className="w-5 h-5 rounded-full object-cover" />
+                                    ) : (
+                                        <Search size={18} className="text-slate-600 dark:text-slate-400" />
+                                    )}
+                                </button>
+
+                                {/* Search Engine Selector Dropdown */}
+                                {showEngineSelector && (
+                                    <div className="absolute left-0 top-full mt-2 z-20 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 p-2 min-w-[200px] animate-in fade-in slide-in-from-top-2 duration-200">
+                                        {externalEngines.map(engine => (
+                                            <button
+                                                key={engine.id}
+                                                type="button"
+                                                onClick={() => {
+                                                    setActiveEngineId(engine.id);
+                                                    setShowEngineSelector(false);
+                                                }}
+                                                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                                    activeEngineId === engine.id
+                                                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                                                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                                                }`}
+                                            >
+                                                {engine.icon?.startsWith('http') ? (
+                                                    <img src={engine.icon} className="w-4 h-4 rounded-full object-cover" />
+                                                ) : (
+                                                    <Search size={16} />
+                                                )}
+                                                <span>{engine.name}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </>
+                        )}
                     <input
                         ref={searchInputRef}
                         type="text"
@@ -858,7 +897,7 @@ function App() {
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className={`w-full border border-transparent hover:border-slate-200 dark:hover:border-slate-600 rounded-full text-sm dark:text-white placeholder-slate-400 outline-none transition-all focus:bg-white dark:focus:bg-slate-700 focus:ring-2 focus:ring-blue-500/50 ${
-                            searchMode === 'external' ? 'pl-12 pr-16 py-2 bg-slate-100 dark:bg-slate-700/50 hover:bg-white dark:hover:bg-slate-700' : 'pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-700/50 hover:bg-white dark:hover:bg-slate-700'
+                            searchMode === 'external' ? 'pl-10 pr-16 py-2 bg-slate-100 dark:bg-slate-700/50 hover:bg-white dark:hover:bg-slate-700' : 'pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-700/50 hover:bg-white dark:hover:bg-slate-700'
                         }`}
                     />
                     {searchMode === 'local' && (
@@ -866,14 +905,15 @@ function App() {
                             <Search size={16} />
                         </div>
                     )}
-                    
-                    {/* Visual Indicator for Search */}
-                    {searchQuery && (
-                        <button type="submit" className="absolute right-2 p-1.5 bg-blue-100 dark:bg-blue-900/40 text-blue-600 rounded-full hover:bg-blue-200 transition-colors">
-                            <ArrowRight size={14} />
-                        </button>
-                    )}
-                </form>
+
+                        {/* Visual Indicator for Search */}
+                        {searchQuery && (
+                            <button type="submit" className="absolute right-2 p-1.5 bg-blue-100 dark:bg-blue-900/40 text-blue-600 rounded-full hover:bg-blue-200 transition-colors">
+                                <ArrowRight size={14} />
+                            </button>
+                        )}
+                    </form>
+                </div>
             </div>
           </div>
 
