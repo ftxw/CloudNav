@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { X, ArrowUp, ArrowDown, Trash2, Edit2, Plus, Check, Lock, Merge, Smile } from 'lucide-react';
+import { X, ArrowUp, ArrowDown, Trash2, Edit2, Plus, Check, Lock, Merge, AlertTriangle } from 'lucide-react';
 import { Category, LinkItem } from '../types';
 import Icon from './Icon';
 
@@ -57,6 +57,9 @@ const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
   // Merge State
   const [mergingCatId, setMergingCatId] = useState<string | null>(null);
   const [targetMergeId, setTargetMergeId] = useState<string>('');
+
+  // Delete Confirmation State
+  const [deleteConfirmCat, setDeleteConfirmCat] = useState<Category | null>(null);
 
   if (!isOpen) return null;
 
@@ -115,8 +118,6 @@ const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
       if (!mergingCatId || !targetMergeId) return;
       if (mergingCatId === targetMergeId) return;
 
-      if (!confirm('确定合并吗？合并后原分类将被删除。')) return;
-
       // 1. Move all links
       const newLinks = links.map(l => l.categoryId === mergingCatId ? { ...l, categoryId: targetMergeId } : l);
 
@@ -125,6 +126,16 @@ const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
 
       onUpdateCategories(newCats, newLinks);
       setMergingCatId(null);
+  };
+
+  const handleDeleteClick = (cat: Category) => {
+      setDeleteConfirmCat(cat);
+  };
+
+  const handleConfirmDelete = () => {
+      if (!deleteConfirmCat) return;
+      onDeleteCategory(deleteConfirmCat.id);
+      setDeleteConfirmCat(null);
   };
 
   return (
@@ -244,12 +255,7 @@ const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
                             <Merge size={14} />
                         </button>
                         <button
-                        onClick={() => {
-                            const linkCount = links.filter(l => l.categoryId === cat.id).length;
-                            if(confirm(`确定删除"${cat.name}"分类吗？该分类下的${linkCount}个链接将一并删除，此操作不可恢复。`)) {
-                                onDeleteCategory(cat.id);
-                            }
-                        }}
+                        onClick={() => handleDeleteClick(cat)}
                         className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-slate-200 dark:hover:bg-slate-600 rounded"
                         title="删除"
                         >
@@ -317,6 +323,47 @@ const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
            </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmCat && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md" onClick={() => setDeleteConfirmCat(null)}>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-200 dark:border-slate-700 p-8 relative" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setDeleteConfirmCat(null)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+            >
+              <X size={20} />
+            </button>
+            <div className="flex flex-col items-center mb-6">
+              <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4 text-red-600 dark:text-red-400">
+                <AlertTriangle size={32} />
+              </div>
+              <h2 className="text-xl font-bold dark:text-white">温馨提示</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400 text-center mt-2">
+                确定要删除"{deleteConfirmCat.name}"分类吗？
+              </p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 text-center mt-1">
+                该分类下的 {links.filter(l => l.categoryId === deleteConfirmCat.id).length} 个链接将一并删除，此操作不可恢复。
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <button
+                onClick={handleConfirmDelete}
+                className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-lg shadow-red-500/30 flex items-center justify-center gap-2"
+              >
+                确认删除
+              </button>
+              <button
+                onClick={() => setDeleteConfirmCat(null)}
+                className="w-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 font-medium py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

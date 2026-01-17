@@ -668,6 +668,7 @@ function App() {
         activeEngineId={activeEngineId}
         onUpdateEngines={handleUpdateSearchEngines}
         onSelectEngine={setActiveEngineId}
+        authToken={authToken}
       />
 
       {/* Sidebar Mobile Overlay */}
@@ -835,7 +836,7 @@ function App() {
                 {/* Settings Gear (Visible only for External) */}
                 {searchMode === 'external' && (
                     <button
-                        onClick={() => setIsSearchSettingsOpen(true)}
+                        onClick={() => { if(!authToken) setIsAuthOpen(true); else setIsSearchSettingsOpen(true); }}
                         className="p-2 text-slate-400 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors animate-in fade-in slide-in-from-left-2 duration-200"
                         title="管理搜索引擎"
                     >
