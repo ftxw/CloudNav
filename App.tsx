@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Search, Plus, Upload, Moon, Sun, Menu,
-  Trash2, Edit2, Loader2, Cloud, CheckCircle2, AlertCircle,
+  Trash2, Edit2, Loader2, Cloud, CheckCircle2, AlertCircle, AlertTriangle,
   Pin, Settings, Lock, CloudCog, Github, GitFork, MoreVertical,
   QrCode, Copy, LayoutGrid, List, Check, ExternalLink, ArrowRight, LogOut
 } from 'lucide-react';
@@ -114,6 +114,7 @@ function App() {
   
   const [editingLink, setEditingLink] = useState<LinkItem | undefined>(undefined);
   const [prefillLink, setPrefillLink] = useState<Partial<LinkItem> | undefined>(undefined);
+  const [deleteLinkConfirm, setDeleteLinkConfirm] = useState<LinkItem | null>(null);
   
   const [syncStatus, setSyncStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [authToken, setAuthToken] = useState<string>('');
@@ -385,9 +386,16 @@ function App() {
 
   const handleDeleteLink = (id: string) => {
     if (!authToken) { setIsAuthOpen(true); return; }
-    if (confirm('确定删除此链接吗?')) {
-      updateData(links.filter(l => l.id !== id), categories);
+    const link = links.find(l => l.id === id);
+    if (link) {
+      setDeleteLinkConfirm(link);
     }
+  };
+
+  const handleConfirmDeleteLink = () => {
+    if (!deleteLinkConfirm) return;
+    updateData(links.filter(l => l.id !== deleteLinkConfirm.id), categories);
+    setDeleteLinkConfirm(null);
   };
 
   const togglePin = (id: string) => {
@@ -612,6 +620,47 @@ function App() {
                   <p className="text-xs text-slate-500 max-w-[200px] truncate">{qrCodeLink.url}</p>
               </div>
           </div>
+      )}
+
+      {/* Delete Link Confirmation Modal */}
+      {deleteLinkConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md" onClick={() => setDeleteLinkConfirm(null)}>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-200 dark:border-slate-700 p-8 relative" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setDeleteLinkConfirm(null)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+            >
+              <X size={20} />
+            </button>
+            <div className="flex flex-col items-center mb-6">
+              <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4 text-red-600 dark:text-red-400">
+                <AlertTriangle size={32} />
+              </div>
+              <h2 className="text-xl font-bold dark:text-white">温馨提示</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400 text-center mt-2">
+                确定要删除此链接吗？
+              </p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 text-center mt-1">
+                {deleteLinkConfirm.title}
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <button
+                onClick={handleConfirmDeleteLink}
+                className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-lg shadow-red-500/30 flex items-center justify-center gap-2"
+              >
+                确认删除
+              </button>
+              <button
+                onClick={() => setDeleteLinkConfirm(null)}
+                className="w-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 font-medium py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <AuthModal isOpen={isAuthOpen} onLogin={handleLogin} onClose={() => setIsAuthOpen(false)} />
