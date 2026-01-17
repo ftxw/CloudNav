@@ -927,6 +927,8 @@ function App() {
                 if (activeCategory !== 'all' && activeCategory !== cat.id) return null;
 
                 let catLinks = searchResults.filter(l => l.categoryId === cat.id);
+                const catPinnedLinks = catLinks.filter(l => l.pinned);
+                const catOtherLinks = catLinks.filter(l => !l.pinned);
                 const isLocked = cat.password && !unlockedCategoryIds.has(cat.id);
 
                 // Logic Fix: If External Search, do NOT hide categories based on links
@@ -948,7 +950,7 @@ function App() {
                              </h2>
                              {isLocked && <Lock size={16} className="text-amber-500" />}
                         </div>
-                        
+
                         {isLocked ? (
                              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 p-8 flex flex-col items-center justify-center text-center">
                                 <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mb-4 text-amber-600 dark:text-amber-400">
@@ -956,7 +958,7 @@ function App() {
                                 </div>
                                 <h3 className="text-slate-800 dark:text-slate-200 font-medium mb-1">私密目录</h3>
                                 <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">该分类已加密，需要验证密码才能查看内容</p>
-                                <button 
+                                <button
                                     onClick={() => setCatAuthModalData(cat)}
                                     className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium transition-colors"
                                 >
@@ -970,9 +972,29 @@ function App() {
                                         暂无链接
                                     </div>
                                 ) : (
-                                    <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
-                                        {catLinks.map(link => renderLinkCard(link))}
-                                    </div>
+                                    <>
+                                        {/* 显示置顶链接 */}
+                                        {catPinnedLinks.length > 0 && (
+                                            <div className="mb-4">
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <Pin size={16} className="text-blue-500 fill-blue-500" />
+                                                    <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                                        置顶链接
+                                                    </h3>
+                                                </div>
+                                                <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
+                                                    {catPinnedLinks.map(link => renderLinkCard(link))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* 显示其他链接 */}
+                                        {catOtherLinks.length > 0 && (
+                                            <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
+                                                {catOtherLinks.map(link => renderLinkCard(link))}
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                              </>
                         )}
