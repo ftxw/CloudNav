@@ -176,7 +176,6 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
                           {icon === iconName && (
                             <div className="absolute inset-0 rounded-lg ring-2 ring-blue-500 -z-10"></div>
                           )}
-                        >
                           <div className="text-slate-600 dark:text-slate-300">
                             <IconDisplay iconName={iconName} size={16} />
                           </div>
