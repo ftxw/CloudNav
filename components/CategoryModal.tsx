@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Lock, Folder } from 'lucide-react';
+import { X, Lock, Folder, Star, Heart, Home, Book, Code, Globe, Music, Video, Image, File, Link as LinkIcon, Settings, Search, Mail, Phone, User, Calendar, Clock, Map, Camera, Headphones, Terminal, Database, Server, Cloud, Download, Upload, Share, Copy, Trash, Edit, Check, Plus, Minus, Bookmark } from 'lucide-react';
 import { Category } from '../types';
 
 export type ModalMode = 'add' | 'edit' | 'merge';
@@ -19,8 +19,55 @@ const iconList = [
   'Folder', 'Star', 'Heart', 'Home', 'Book', 'Code', 'Globe', 'Music', 'Video', 'Image',
   'File', 'Link', 'Settings', 'Search', 'Mail', 'Phone', 'User', 'Calendar', 'Clock', 'Map',
   'Camera', 'Headphones', 'Terminal', 'Database', 'Server', 'Cloud', 'Download', 'Upload',
-  'Share', 'Copy', 'Cut', 'Trash', 'Edit', 'Check', 'Plus', 'Minus', 'Bookmark'
+  'Share', 'Copy', 'Trash', 'Edit', 'Check', 'Plus', 'Minus', 'Bookmark'
 ];
+
+const iconComponents: { [key: string]: any } = {
+  Folder,
+  Star,
+  Heart,
+  Home,
+  Book,
+  Code,
+  Globe,
+  Music,
+  Video,
+  Image,
+  File,
+  Link: LinkIcon,
+  Settings,
+  Search,
+  Mail,
+  Phone,
+  User,
+  Calendar,
+  Clock,
+  Map,
+  Camera,
+  Headphones,
+  Terminal,
+  Database,
+  Server,
+  Cloud,
+  Download,
+  Upload,
+  Share,
+  Copy,
+  Trash,
+  Edit,
+  Check,
+  Plus,
+  Minus,
+  Bookmark,
+};
+
+const IconDisplay = ({ iconName, size = 20 }: { iconName: string, size?: number }) => {
+  const IconComponent = iconComponents[iconName];
+  if (IconComponent) {
+    return <IconComponent size={size} />;
+  }
+  return <Folder size={size} />;
+};
 
 const CategoryModal: React.FC<CategoryModalProps> = ({
   isOpen,
@@ -96,47 +143,29 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           {mode !== 'merge' && (
             <>
-              {/* Name Input */}
+              {/* Name Input with Icon */}
               <div>
                 <label className="block text-sm font-medium mb-1 dark:text-slate-300">分类名称</label>
-                <input
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full p-2 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                  placeholder="输入分类名称"
-                  autoFocus
-                />
-              </div>
-
-              {/* Icon Selector */}
-              <div>
-                <label className="block text-sm font-medium mb-1 dark:text-slate-300">图标</label>
                 <div className="flex gap-2 items-center">
-                  <div className="shrink-0 w-10 h-10 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 flex items-center justify-center">
-                    <div className="text-blue-600 dark:text-blue-400">
-                      {icon.length <= 4 ? (
-                        <span className="text-lg">{icon}</span>
-                      ) : (
-                        <Folder size={20} />
-                      )}
-                    </div>
-                  </div>
-                  <input
-                    type="text"
-                    value={icon}
-                    onChange={(e) => setIcon(e.target.value)}
-                    className="flex-1 p-2 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                    placeholder="选择或输入图标"
-                  />
                   <button
                     type="button"
                     onClick={() => setShowIconPicker(!showIconPicker)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
+                    className={`shrink-0 w-10 h-10 rounded-lg border ${showIconPicker ? 'ring-2 ring-blue-500 border-blue-500' : 'border-slate-300 dark:border-slate-600'} bg-slate-50 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-600 transition-all`}
+                    title="点击选择图标"
                   >
-                    {showIconPicker ? '收起' : '选择'}
+                    <div className="text-blue-600 dark:text-blue-400">
+                      <IconDisplay iconName={icon} size={20} />
+                    </div>
                   </button>
+                  <input
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="flex-1 p-2 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                    placeholder="输入分类名称"
+                    autoFocus
+                  />
                 </div>
                 {showIconPicker && (
                   <div className="mt-2 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600">
@@ -149,14 +178,9 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
                           className={`p-2 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors flex items-center justify-center ${
                             icon === iconName ? 'bg-blue-100 dark:bg-blue-900/40 ring-2 ring-blue-500' : ''
                           }`}
-                          title={iconName}
                         >
                           <div className="text-slate-600 dark:text-slate-300">
-                            {iconName.length <= 4 ? (
-                              <span className="text-sm">{iconName}</span>
-                            ) : (
-                              <Folder size={16} />
-                            )}
+                            <IconDisplay iconName={iconName} size={16} />
                           </div>
                         </button>
                       ))}
