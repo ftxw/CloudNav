@@ -3,9 +3,9 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Search, Plus, Upload, Moon, Sun, Menu,
   Trash2, Edit2, Loader2, Cloud, CheckCircle2, AlertCircle, AlertTriangle,
-  Pin, Settings, Lock, CloudCog, Github, GitFork, MoreVertical,
-  QrCode, Copy, LayoutGrid, List, Check, ExternalLink, ArrowRight, LogOut, X,
-  Move, PlusSquare, Key, Merge, ArrowUp, ArrowDown
+  Pin, Settings, Lock, CloudCog, GitFork,
+  QrCode, Copy, LayoutGrid, List, ArrowRight, LogOut, X,
+  Move, PlusSquare, Merge
 } from 'lucide-react';
 import { 
     LinkItem, Category, DEFAULT_CATEGORIES, INITIAL_LINKS, 
@@ -14,7 +14,6 @@ import {
 import Icon from './components/Icon';
 import LinkModal from './components/LinkModal';
 import AuthModal from './components/AuthModal';
-import CategoryManagerModal from './components/CategoryManagerModal';
 import BackupModal from './components/BackupModal';
 import CategoryAuthModal from './components/CategoryAuthModal';
 import ImportModal from './components/ImportModal';
@@ -79,6 +78,12 @@ function App() {
   // Category Rename Mode
   const [renamingCategoryId, setRenamingCategoryId] = useState<string | null>(null);
   const [renamingValue, setRenamingValue] = useState('');
+  const [editingPasswordValue, setEditingPasswordValue] = useState('');
+
+  // Add Category Mode
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryPassword, setNewCategoryPassword] = useState('');
 
   // Drag and Drop Sort State
   const [draggedCategoryId, setDraggedCategoryId] = useState<string | null>(null);
@@ -120,7 +125,6 @@ function App() {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [isCatManagerOpen, setIsCatManagerOpen] = useState(false);
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -143,57 +147,101 @@ function App() {
 
   const handleAddCategory = () => {
       if (!authToken) { setIsAuthOpen(true); return; }
-      setIsCatManagerOpen(true);
+      setIsAddingCategory(true);
+      setNewCategoryName('');
+      setNewCategoryPassword('');
+      setCategoryContextMenu(null);
   };
 
-  const handleSortCategory = (catId: string) => {
+  const handleSortCategory = () => {
       if (!authToken) { setIsAuthOpen(true); return; }
-      setIsSortingCategory(catId);
+      setIsSortingCategory('all');
+      setCategoryContextMenu(null);
   };
 
   const handleRenameCategory = (cat: Category) => {
       if (!authToken) { setIsAuthOpen(true); return; }
       setRenamingCategoryId(cat.id);
       setRenamingValue(cat.name);
-      setCategoryContextMenu(null);
-  };
-
-  const handleEditCategoryPassword = (cat: Category) => {
-      if (!authToken) { setIsAuthOpen(true); return; }
-      setIsCatManagerOpen(true);
+      setEditingPasswordValue(cat.password || '');
       setCategoryContextMenu(null);
   };
 
   const handleMergeCategory = (cat: Category) => {
       if (!authToken) { setIsAuthOpen(true); return; }
-      setIsCatManagerOpen(true);
+      const targetId = prompt('请输入要合并到的分类ID或名称：');
+      if (!targetId) return;
+
+      const targetCat = categories.find(c => c.id === targetId || c.name === targetId);
+      if (!targetCat) {
+          alert('未找到目标分类');
+          return;
+      }
+
+      const newLinks = links.map(l =>
+          l.categoryId === cat.id ? { ...l, categoryId: targetCat.id } : l
+      );
+      const newCategories = categories.filter(c => c.id !== cat.id);
+      updateData(newLinks, newCategories);
       setCategoryContextMenu(null);
   };
 
   const handleDeleteCategory = (catId: string) => {
       if (!authToken) { setIsAuthOpen(true); return; }
-      setIsCatManagerOpen(true);
+
+      const cat = categories.find(c => c.id === catId);
+      if (!cat) return;
+
+      if (confirm(`确定要删除分类"${cat.name}"及其所有链接吗？`)) {
+          const newCategories = categories.filter(c => c.id !== catId);
+          const newLinks = links.filter(l => l.categoryId !== catId);
+          updateData(newLinks, newCategories);
+      }
       setCategoryContextMenu(null);
   };
 
   const handleSaveCategorySort = () => {
       setIsSortingCategory(null);
-      // 保存排序逻辑
+  };
+
+  const handleConfirmAddCategory = () => {
+      if (!newCategoryName.trim()) return;
+
+      const newCategory: Category = {
+          id: Date.now().toString(),
+          name: newCategoryName.trim(),
+          icon: 'Folder',
+          password: newCategoryPassword.trim() || undefined
+      };
+
+      const newCategories = [...categories, newCategory];
+      updateData(links, newCategories);
+      setIsAddingCategory(false);
+      setNewCategoryName('');
+      setNewCategoryPassword('');
+  };
+
+  const handleCancelAddCategory = () => {
+      setIsAddingCategory(false);
+      setNewCategoryName('');
+      setNewCategoryPassword('');
   };
 
   const handleConfirmRename = () => {
       if (!renamingCategoryId || !renamingValue.trim()) return;
       const newCategories = categories.map(cat =>
-          cat.id === renamingCategoryId ? { ...cat, name: renamingValue.trim() } : cat
+          cat.id === renamingCategoryId ? { ...cat, name: renamingValue.trim(), password: editingPasswordValue.trim() || undefined } : cat
       );
       updateData(links, newCategories);
       setRenamingCategoryId(null);
       setRenamingValue('');
+      setEditingPasswordValue('');
   };
 
   const handleCancelRename = () => {
       setRenamingCategoryId(null);
       setRenamingValue('');
+      setEditingPasswordValue('');
   };
 
   // Drag and Drop handlers
@@ -355,12 +403,27 @@ function App() {
              setContextMenu(null);
           }
           // Close category context menu when clicking outside
-          if (categoryContextMenu) {
+          if (categoryContextMenu && contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
               setCategoryContextMenu(null);
           }
           // Close search engine selector when clicking outside
           if (showEngineSelector && searchEngineSelectorRef.current && !searchEngineSelectorRef.current.contains(e.target as Node)) {
               setShowEngineSelector(false);
+          }
+          // Cancel editing/adding when clicking outside
+          if (renamingCategoryId) {
+              const target = e.target as Node;
+              const editingElement = document.querySelector(`[data-editing="${renamingCategoryId}"]`);
+              if (editingElement && !editingElement.contains(target)) {
+                  handleCancelRename();
+              }
+          }
+          if (isAddingCategory) {
+              const target = e.target as Node;
+              const addingElement = document.querySelector('[data-adding="true"]');
+              if (addingElement && !addingElement.contains(target)) {
+                  handleCancelAddCategory();
+              }
           }
       };
 
@@ -386,7 +449,7 @@ function App() {
           window.removeEventListener('scroll', handleScroll, true);
           window.removeEventListener('contextmenu', handleGlobalContextMenu);
       }
-  }, [openMenuId, contextMenu, categoryContextMenu, showEngineSelector]);
+  }, [openMenuId, contextMenu, categoryContextMenu, showEngineSelector, renamingCategoryId, isAddingCategory]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -547,11 +610,6 @@ function App() {
 
   const handleUnlockCategory = (catId: string) => {
       setUnlockedCategoryIds(prev => new Set(prev).add(catId));
-  };
-
-  const handleUpdateCategories = (newCats: Category[], newLinks?: LinkItem[]) => {
-      if (!authToken) { setIsAuthOpen(true); return; }
-      updateData(newLinks || links, newCats);
   };
 
   const handleSaveWebDavConfig = (config: WebDavConfig) => {
@@ -759,29 +817,22 @@ function App() {
       )}
 
       <AuthModal isOpen={isAuthOpen} onLogin={handleLogin} onClose={() => setIsAuthOpen(false)} />
-      
-      <CategoryAuthModal 
+
+      <CategoryAuthModal
         isOpen={!!catAuthModalData}
         category={catAuthModalData}
         onClose={() => setCatAuthModalData(null)}
         onUnlock={handleUnlockCategory}
       />
 
-      <CategoryManagerModal
-        isOpen={isCatManagerOpen}
-        onClose={() => setIsCatManagerOpen(false)}
-        categories={categories}
-        links={links}
-        onUpdateCategories={handleUpdateCategories}
-        onDeleteCategory={handleDeleteCategory}
-      />
-
       {/* Category Context Menu */}
       {categoryContextMenu && (
         <div
+          ref={contextMenuRef}
           className="fixed z-[9999] bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 w-48 py-2 flex flex-col animate-in fade-in zoom-in duration-100"
           style={{ top: categoryContextMenu.y, left: categoryContextMenu.x }}
           onClick={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.preventDefault()}
         >
           <button
             onClick={handleAddCategory}
@@ -791,7 +842,7 @@ function App() {
             <span>添加分类</span>
           </button>
           <button
-            onClick={() => handleSortCategory(categoryContextMenu.category.id)}
+            onClick={handleSortCategory}
             className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-left"
           >
             <Move size={16} className="text-slate-400"/>
@@ -802,14 +853,7 @@ function App() {
             className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-left"
           >
             <Edit2 size={16} className="text-slate-400"/>
-            <span>重命名</span>
-          </button>
-          <button
-            onClick={() => handleEditCategoryPassword(categoryContextMenu.category)}
-            className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-left"
-          >
-            <Key size={16} className="text-slate-400"/>
-            <span>修改密码</span>
+            <span>编辑</span>
           </button>
           <button
             onClick={() => handleMergeCategory(categoryContextMenu.category)}
@@ -936,14 +980,14 @@ function App() {
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(e, cat.id)}
                     onDragEnd={handleDragEnd}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all group relative ${
+                    className={`w-full transition-all group relative ${
                       activeCategory === cat.id
                         ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-medium'
                         : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
                     } ${isSorting ? 'cursor-move' : ''} ${draggedCategoryId === cat.id ? 'opacity-50' : ''}`}
                     onContextMenu={(e) => {
                         e.preventDefault();
-                        if (isSorting || isRenaming) return;
+                        if (isSorting || isRenaming || isAddingCategory) return;
                         let x = e.clientX;
                         let y = e.clientY;
                         // Boundary adjustment
@@ -952,46 +996,114 @@ function App() {
                         setCategoryContextMenu({ x, y, category: cat });
                     }}
                   >
-                    <div className="flex-1 flex items-center gap-3" onClick={() => !isRenaming && !isSorting && scrollToCategory(cat.id)}>
-                        <div className={`p-1.5 rounded-lg transition-colors flex items-center justify-center ${activeCategory === cat.id ? 'bg-blue-100 dark:bg-blue-800' : 'bg-slate-100 dark:bg-slate-800'}`}>
-                          {isLocked ? <Lock size={16} className="text-amber-500" /> : (isEmoji ? <span className="text-base leading-none">{cat.icon}</span> : <Icon name={cat.icon} size={16} />)}
-                        </div>
-                        {isRenaming ? (
-                            <input
-                                type="text"
-                                value={renamingValue}
-                                onChange={(e) => setRenamingValue(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') handleConfirmRename();
-                                    if (e.key === 'Escape') handleCancelRename();
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                                className="flex-1 bg-white dark:bg-slate-700 text-sm px-2 py-1 rounded border border-blue-300 dark:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                autoFocus
-                            />
-                        ) : (
-                            <span className="truncate flex-1 text-left">{cat.name}</span>
-                        )}
-                        {isRenaming && (
-                            <>
+                    {isRenaming ? (
+                        <div data-editing={renamingCategoryId} className="px-4 py-2.5 space-y-2">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-slate-400 whitespace-nowrap">名称:</span>
+                                <input
+                                    type="text"
+                                    value={renamingValue}
+                                    onChange={(e) => setRenamingValue(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleConfirmRename();
+                                        if (e.key === 'Escape') handleCancelRename();
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="flex-1 bg-white dark:bg-slate-700 text-sm px-2 py-1 rounded border border-blue-300 dark:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    autoFocus
+                                />
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-slate-400 whitespace-nowrap">密码:</span>
+                                <input
+                                    type="password"
+                                    value={editingPasswordValue}
+                                    onChange={(e) => setEditingPasswordValue(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleConfirmRename();
+                                        if (e.key === 'Escape') handleCancelRename();
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    placeholder="留空则不设置密码"
+                                    className="flex-1 bg-white dark:bg-slate-700 text-sm px-2 py-1 rounded border border-blue-300 dark:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
+                            <div className="flex items-center gap-2 justify-end">
                                 <button
                                     onClick={(e) => { e.stopPropagation(); handleConfirmRename(); }}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-medium transition-colors"
+                                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
                                 >
                                     确认
                                 </button>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); handleCancelRename(); }}
-                                    className="bg-slate-400 hover:bg-slate-500 text-white px-2 py-1 rounded text-xs font-medium transition-colors"
+                                    className="bg-slate-400 hover:bg-slate-500 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
                                 >
                                     取消
                                 </button>
-                            </>
-                        )}
-                    </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="w-full flex items-center gap-3 px-4 py-2.5" onClick={() => !isSorting && scrollToCategory(cat.id)}>
+                            <div className={`p-1.5 rounded-lg transition-colors flex items-center justify-center ${activeCategory === cat.id ? 'bg-blue-100 dark:bg-blue-800' : 'bg-slate-100 dark:bg-slate-800'}`}>
+                              {isLocked ? <Lock size={16} className="text-amber-500" /> : (isEmoji ? <span className="text-base leading-none">{cat.icon}</span> : <Icon name={cat.icon} size={16} />)}
+                            </div>
+                            <span className="truncate flex-1 text-left">{cat.name}</span>
+                        </div>
+                    )}
                   </div>
                 );
             })}
+
+            {/* Add Category Form */}
+            {isAddingCategory && (
+                <div data-adding="true" className="px-4 py-2.5 space-y-2 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-400 whitespace-nowrap">名称:</span>
+                        <input
+                            type="text"
+                            value={newCategoryName}
+                            onChange={(e) => setNewCategoryName(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleConfirmAddCategory();
+                                if (e.key === 'Escape') handleCancelAddCategory();
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex-1 bg-white dark:bg-slate-700 text-sm px-2 py-1 rounded border border-blue-300 dark:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            autoFocus
+                        />
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-400 whitespace-nowrap">密码:</span>
+                        <input
+                            type="password"
+                            value={newCategoryPassword}
+                            onChange={(e) => setNewCategoryPassword(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleConfirmAddCategory();
+                                if (e.key === 'Escape') handleCancelAddCategory();
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            placeholder="留空则不设置密码"
+                            className="flex-1 bg-white dark:bg-slate-700 text-sm px-2 py-1 rounded border border-blue-300 dark:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+                    <div className="flex items-center gap-2 justify-end">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); handleConfirmAddCategory(); }}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                        >
+                            确认
+                        </button>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); handleCancelAddCategory(); }}
+                            className="bg-slate-400 hover:bg-slate-500 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                        >
+                            取消
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
 
         <div className="p-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 shrink-0">
