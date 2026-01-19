@@ -671,7 +671,7 @@ function App() {
                   activeCategory === cat.id
                       ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-medium'
                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-              } ${isSorting ? 'cursor-move' : 'cursor-pointer'} ${isDragging ? 'opacity-0' : ''}`}
+              } ${isSorting ? 'cursor-move border-2 border-dashed border-blue-400 dark:border-blue-500' : 'cursor-pointer'} ${isDragging ? 'opacity-0' : ''}`}
               onContextMenu={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -964,28 +964,6 @@ function App() {
         categories={categories}
       />
 
-      {/* Drag Overlay for sorting */}
-      <DragOverlay>
-        {activeId ? (
-          <div className="w-64 bg-blue-50 dark:bg-blue-900/30 rounded-xl border-2 border-blue-300 dark:border-blue-600 flex items-center gap-3 px-4 py-2.5 shadow-2xl pointer-events-none">
-            {(() => {
-              const cat = categories.find(c => c.id === activeId);
-              if (!cat) return null;
-              const isEmoji = cat.icon && cat.icon.length <= 4 && !/^[a-zA-Z]+$/.test(cat.icon);
-              const isLocked = cat.password && !unlockedCategoryIds.has(cat.id);
-              return (
-                <>
-                  <div className="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-800 flex items-center justify-center">
-                    {isLocked ? <Lock size={16} className="text-amber-500" /> : (isEmoji ? <span className="text-base leading-none">{cat.icon}</span> : <Icon name={cat.icon} size={16} className="text-blue-600 dark:text-blue-400" />)}
-                  </div>
-                  <span className="truncate flex-1 text-left text-blue-600 dark:text-blue-400 font-medium">{cat.name}</span>
-                </>
-              );
-            })()}
-          </div>
-        ) : null}
-      </DragOverlay>
-
       {/* Sidebar Mobile Overlay */}
       {sidebarOpen && (
         <div 
@@ -1047,6 +1025,26 @@ function App() {
                         return <SortableCategoryItem key={cat.id} cat={cat} isSorting={isSorting} />;
                     })}
                 </SortableContext>
+                <DragOverlay>
+                  {activeId ? (
+                    <div className="w-64 bg-blue-50 dark:bg-blue-900/30 rounded-xl border-2 border-blue-300 dark:border-blue-600 flex items-center gap-3 px-4 py-2.5 shadow-2xl pointer-events-none">
+                      {(() => {
+                        const cat = categories.find(c => c.id === activeId);
+                        if (!cat) return null;
+                        const isEmoji = cat.icon && cat.icon.length <= 4 && !/^[a-zA-Z]+$/.test(cat.icon);
+                        const isLocked = cat.password && !unlockedCategoryIds.has(cat.id);
+                        return (
+                          <>
+                            <div className="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-800 flex items-center justify-center">
+                              {isLocked ? <Lock size={16} className="text-amber-500" /> : (isEmoji ? <span className="text-base leading-none">{cat.icon}</span> : <Icon name={cat.icon} size={16} className="text-blue-600 dark:text-blue-400" />)}
+                            </div>
+                            <span className="truncate flex-1 text-left text-blue-600 dark:text-blue-400 font-medium">{cat.name}</span>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  ) : null}
+                </DragOverlay>
             </DndContext>
         </div>
 
