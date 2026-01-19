@@ -223,6 +223,10 @@ function App() {
       setIsSortingCategory(null);
   };
 
+  const handleDragStart = (event: any) => {
+      setActiveId(event.active.id);
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
       const { active, over } = event;
 
@@ -671,7 +675,7 @@ function App() {
                   activeCategory === cat.id
                       ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-medium'
                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-              } ${isSorting ? 'cursor-move border-2 border-dashed border-blue-400 dark:border-blue-500' : 'cursor-pointer'} ${isDragging ? 'opacity-0' : ''}`}
+              } ${isSorting ? 'cursor-move border border-dashed border-blue-400 dark:border-blue-500' : 'cursor-pointer'} ${isDragging ? 'opacity-0' : ''}`}
               onContextMenu={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -1018,7 +1022,7 @@ function App() {
                ) : null}
             </div>
 
-            <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+            <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
                 <SortableContext items={categories.map(c => c.id)} strategy={verticalListSortingStrategy}>
                     {categories.map(cat => {
                         const isSorting = isSortingCategory === 'all';
