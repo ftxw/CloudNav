@@ -76,6 +76,13 @@ function App() {
   // Category Sort Mode
   const [isSortingCategory, setIsSortingCategory] = useState<string | null>(null);
 
+  // Category Rename Mode
+  const [renamingCategoryId, setRenamingCategoryId] = useState<string | null>(null);
+  const [renamingValue, setRenamingValue] = useState('');
+
+  // Drag and Drop Sort State
+  const [draggedCategoryId, setDraggedCategoryId] = useState<string | null>(null);
+
   const [qrCodeLink, setQrCodeLink] = useState<LinkItem | null>(null);
 
   const [unlockedCategoryIds, setUnlockedCategoryIds] = useState<Set<string>>(new Set());
@@ -136,7 +143,7 @@ function App() {
 
   const handleAddCategory = () => {
       if (!authToken) { setIsAuthOpen(true); return; }
-      setCatManagerOpen(true);
+      setIsCatManagerOpen(true);
   };
 
   const handleSortCategory = (catId: string) => {
@@ -146,8 +153,8 @@ function App() {
 
   const handleRenameCategory = (cat: Category) => {
       if (!authToken) { setIsAuthOpen(true); return; }
-      setIsCatManagerOpen(true);
-      // 在 CategoryManagerModal 中设置编辑状态
+      setRenamingCategoryId(cat.id);
+      setRenamingValue(cat.name);
       setCategoryContextMenu(null);
   };
 
@@ -171,7 +178,53 @@ function App() {
 
   const handleSaveCategorySort = () => {
       setIsSortingCategory(null);
-      // 这里保存排序逻辑可以后续实现
+      // 保存排序逻辑
+  };
+
+  const handleConfirmRename = () => {
+      if (!renamingCategoryId || !renamingValue.trim()) return;
+      const newCategories = categories.map(cat =>
+          cat.id === renamingCategoryId ? { ...cat, name: renamingValue.trim() } : cat
+      );
+      updateData(links, newCategories);
+      setRenamingCategoryId(null);
+      setRenamingValue('');
+  };
+
+  const handleCancelRename = () => {
+      setRenamingCategoryId(null);
+      setRenamingValue('');
+  };
+
+  // Drag and Drop handlers
+  const handleDragStart = (e: React.DragEvent, catId: string) => {
+      setDraggedCategoryId(catId);
+      e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e: React.DragEvent, targetCatId: string) => {
+      e.preventDefault();
+      if (!draggedCategoryId || draggedCategoryId === targetCatId) return;
+
+      const newCategories = [...categories];
+      const draggedIndex = newCategories.findIndex(c => c.id === draggedCategoryId);
+      const targetIndex = newCategories.findIndex(c => c.id === targetCatId);
+
+      if (draggedIndex !== -1 && targetIndex !== -1) {
+          const [draggedItem] = newCategories.splice(draggedIndex, 1);
+          newCategories.splice(targetIndex, 0, draggedItem);
+          updateData(links, newCategories);
+      }
+      setDraggedCategoryId(null);
+  };
+
+  const handleDragEnd = () => {
+      setDraggedCategoryId(null);
   };
 
   // --- Helpers ---
@@ -866,31 +919,31 @@ function App() {
                    >
                       确认
                    </button>
-               ) : (
-                   <button
-                      onClick={handleAddCategory}
-                      className="p-1 text-slate-400 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded"
-                      title="添加分类"
-                   >
-                      <Plus size={14} />
-                   </button>
-               )}
+               ) : null}
             </div>
 
             {categories.map(cat => {
                 const isLocked = cat.password && !unlockedCategoryIds.has(cat.id);
                 const isEmoji = cat.icon && cat.icon.length <= 4 && !/^[a-zA-Z]+$/.test(cat.icon);
+                const isRenaming = renamingCategoryId === cat.id;
+                const isSorting = isSortingCategory === 'all';
 
                 return (
                   <div
                     key={cat.id}
+                    draggable={isSorting}
+                    onDragStart={(e) => handleDragStart(e, cat.id)}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, cat.id)}
+                    onDragEnd={handleDragEnd}
                     className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all group relative ${
                       activeCategory === cat.id
                         ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-medium'
                         : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-                    }`}
+                    } ${isSorting ? 'cursor-move' : ''} ${draggedCategoryId === cat.id ? 'opacity-50' : ''}`}
                     onContextMenu={(e) => {
                         e.preventDefault();
+                        if (isSorting || isRenaming) return;
                         let x = e.clientX;
                         let y = e.clientY;
                         // Boundary adjustment
@@ -899,27 +952,42 @@ function App() {
                         setCategoryContextMenu({ x, y, category: cat });
                     }}
                   >
-                    <div className="flex-1 flex items-center gap-3" onClick={() => scrollToCategory(cat.id)}>
+                    <div className="flex-1 flex items-center gap-3" onClick={() => !isRenaming && !isSorting && scrollToCategory(cat.id)}>
                         <div className={`p-1.5 rounded-lg transition-colors flex items-center justify-center ${activeCategory === cat.id ? 'bg-blue-100 dark:bg-blue-800' : 'bg-slate-100 dark:bg-slate-800'}`}>
                           {isLocked ? <Lock size={16} className="text-amber-500" /> : (isEmoji ? <span className="text-base leading-none">{cat.icon}</span> : <Icon name={cat.icon} size={16} />)}
                         </div>
-                        <span className="truncate flex-1 text-left">{cat.name}</span>
-                        {activeCategory === cat.id && isSortingCategory === cat.id ? (
-                            <button
-                                onClick={(e) => { e.stopPropagation(); handleSaveCategorySort(); }}
-                                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
-                            >
-                                确认
-                            </button>
-                        ) : activeCategory === cat.id ? (
-                            <button
-                                onClick={(e) => { e.stopPropagation(); handleSortCategory(cat.id); }}
-                                className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors"
-                                title="排序"
-                            >
-                                <Move size={14} />
-                            </button>
-                        ) : null}
+                        {isRenaming ? (
+                            <input
+                                type="text"
+                                value={renamingValue}
+                                onChange={(e) => setRenamingValue(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleConfirmRename();
+                                    if (e.key === 'Escape') handleCancelRename();
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="flex-1 bg-white dark:bg-slate-700 text-sm px-2 py-1 rounded border border-blue-300 dark:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                autoFocus
+                            />
+                        ) : (
+                            <span className="truncate flex-1 text-left">{cat.name}</span>
+                        )}
+                        {isRenaming && (
+                            <>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); handleConfirmRename(); }}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-medium transition-colors"
+                                >
+                                    确认
+                                </button>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); handleCancelRename(); }}
+                                    className="bg-slate-400 hover:bg-slate-500 text-white px-2 py-1 rounded text-xs font-medium transition-colors"
+                                >
+                                    取消
+                                </button>
+                            </>
+                        )}
                     </div>
                   </div>
                 );
