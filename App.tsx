@@ -279,7 +279,7 @@ function App() {
           window.removeEventListener('scroll', handleScroll, true);
           window.removeEventListener('contextmenu', handleGlobalContextMenu);
       }
-  }, [openMenuId, contextMenu]);
+  }, [openMenuId, contextMenu, showEngineSelector]);
 
   useEffect(() => {
     const handleScroll = () => {
