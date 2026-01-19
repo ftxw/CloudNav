@@ -1031,7 +1031,7 @@ function App() {
                 </SortableContext>
                 <DragOverlay>
                   {activeId ? (
-                    <div className="w-64 bg-blue-50 dark:bg-blue-900/30 rounded-xl border-2 border-blue-300 dark:border-blue-600 flex items-center gap-3 px-4 py-2.5 shadow-2xl pointer-events-none">
+                    <div className="w-full bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-300 dark:border-blue-600 flex items-center gap-3 px-4 py-2.5 shadow-2xl pointer-events-none">
                       {(() => {
                         const cat = categories.find(c => c.id === activeId);
                         if (!cat) return null;
