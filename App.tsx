@@ -519,6 +519,11 @@ function App() {
     }
   };
 
+  // Debug categoryContextMenu state changes
+  useEffect(() => {
+    console.log('categoryContextMenu state changed:', categoryContextMenu);
+  }, [categoryContextMenu]);
+
   // --- Handlers ---
   const handleLogin = async (password: string): Promise<boolean> => {
       try {
@@ -974,13 +979,20 @@ function App() {
                         : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
                     } ${isSorting ? 'cursor-move' : ''} ${draggedCategoryId === cat.id ? 'opacity-50' : ''}`}
                     onContextMenu={(e) => {
+                        console.log('Category right click triggered on:', cat.name);
+                        console.log('Event:', e);
                         e.preventDefault();
-                        if (isSorting || isRenaming || isAddingCategory || isMergingCategory) return;
+                        e.stopPropagation();
+                        if (isSorting || isRenaming || isAddingCategory || isMergingCategory) {
+                            console.log('Returning early - mode active:', { isSorting, isRenaming, isAddingCategory, isMergingCategory });
+                            return;
+                        }
                         let x = e.clientX;
                         let y = e.clientY;
                         // Boundary adjustment
                         if (x + 200 > window.innerWidth) x = window.innerWidth - 210;
                         if (y + 250 > window.innerHeight) y = window.innerHeight - 260;
+                        console.log('Setting category menu at:', { x, y });
                         setCategoryContextMenu({ x, y, category: cat });
                     }}
                   >
@@ -1031,7 +1043,18 @@ function App() {
                             </div>
                         </div>
                     ) : (
-                        <div className="w-full flex items-center gap-3" onClick={() => !isSorting && scrollToCategory(cat.id)}>
+                        <div className="w-full flex items-center gap-3" onClick={() => !isSorting && scrollToCategory(cat.id)} onContextMenu={(e) => {
+                            console.log('Inner div right click triggered on:', cat.name);
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (isSorting || isRenaming || isAddingCategory || isMergingCategory) return;
+                            let x = e.clientX;
+                            let y = e.clientY;
+                            if (x + 200 > window.innerWidth) x = window.innerWidth - 210;
+                            if (y + 250 > window.innerHeight) y = window.innerHeight - 260;
+                            console.log('Setting category menu from inner div at:', { x, y });
+                            setCategoryContextMenu({ x, y, category: cat });
+                        }}>
                             <div className={`p-1.5 rounded-lg transition-colors flex items-center justify-center ${activeCategory === cat.id ? 'bg-blue-100 dark:bg-blue-800' : 'bg-slate-100 dark:bg-slate-800'}`}>
                               {isLocked ? <Lock size={16} className="text-amber-500" /> : (isEmoji ? <span className="text-base leading-none">{cat.icon}</span> : <Icon name={cat.icon} size={16} />)}
                             </div>
@@ -1161,9 +1184,16 @@ function App() {
         <div
           ref={categoryContextMenuRef}
           className="fixed z-[9999] bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 w-48 py-2 flex flex-col animate-in fade-in zoom-in duration-100"
-          style={{ top: categoryContextMenu.y, left: categoryContextMenu.x }}
-          onClick={(e) => e.stopPropagation()}
-          onContextMenu={(e) => e.preventDefault()}
+          style={{ top: categoryContextMenu.y, left: categoryContextMenu.x, position: 'fixed' }}
+          onClick={(e) => {
+              console.log('Category menu item clicked');
+              e.stopPropagation();
+          }}
+          onContextMenu={(e) => {
+              console.log('Context menu on the menu itself');
+              e.preventDefault();
+          }}
+          onMouseEnter={() => console.log('Category menu mouse enter')}
         >
           <button
             onClick={handleAddCategory}
