@@ -106,6 +106,7 @@ function App() {
   // Drag and Drop Sort State
   const [draggedCategoryId, setDraggedCategoryId] = useState<string | null>(null);
   const [dragOverCategoryId, setDragOverCategoryId] = useState<string | null>(null);
+  const [dragDirection, setDragDirection] = useState<'up' | 'down' | null>(null);
 
   const [qrCodeLink, setQrCodeLink] = useState<LinkItem | null>(null);
 
@@ -152,6 +153,7 @@ function App() {
   const [editingLink, setEditingLink] = useState<LinkItem | undefined>(undefined);
   const [prefillLink, setPrefillLink] = useState<Partial<LinkItem> | undefined>(undefined);
   const [deleteLinkConfirm, setDeleteLinkConfirm] = useState<LinkItem | null>(null);
+  const [deleteCategoryConfirm, setDeleteCategoryConfirm] = useState<Category | null>(null);
   
   const [syncStatus, setSyncStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [authToken, setAuthToken] = useState<string>('');
@@ -195,39 +197,22 @@ function App() {
       setCategoryContextMenu(null);
   };
 
-  const handleConfirmMerge = () => {
-      if (!isMergingCategory || !mergeTargetId) return;
-      if (isMergingCategory === mergeTargetId) return;
-
-      const targetCat = categories.find(c => c.id === mergeTargetId);
-      if (!targetCat) return;
-
-      const newLinks = links.map(l =>
-          l.categoryId === isMergingCategory ? { ...l, categoryId: targetCat.id } : l
-      );
-      const newCategories = categories.filter(c => c.id !== isMergingCategory);
-      updateData(newLinks, newCategories);
-      setIsMergingCategory(null);
-      setMergeTargetId('');
-  };
-
-  const handleCancelMerge = () => {
-      setIsMergingCategory(null);
-      setMergeTargetId('');
-  };
-
   const handleDeleteCategory = (catId: string) => {
       if (!authToken) { setIsAuthOpen(true); return; }
 
       const cat = categories.find(c => c.id === catId);
       if (!cat) return;
 
-      if (confirm(`确定要删除分类"${cat.name}"及其所有链接吗？`)) {
-          const newCategories = categories.filter(c => c.id !== catId);
-          const newLinks = links.filter(l => l.categoryId !== catId);
-          updateData(newLinks, newCategories);
-      }
+      setDeleteCategoryConfirm(cat);
       setCategoryContextMenu(null);
+  };
+
+  const handleConfirmDeleteCategory = () => {
+      if (!deleteCategoryConfirm) return;
+      const newCategories = categories.filter(c => c.id !== deleteCategoryConfirm.id);
+      const newLinks = links.filter(l => l.categoryId !== deleteCategoryConfirm.id);
+      updateData(newLinks, newCategories);
+      setDeleteCategoryConfirm(null);
   };
 
   const handleSaveCategorySort = () => {
@@ -269,7 +254,7 @@ function App() {
       setSelectedIcon(icon);
       if (iconPickerTarget === 'rename') {
           setEditingIconValue(icon);
-      } else {
+      } else if (iconPickerTarget === 'add') {
           setNewCategoryIcon(icon);
       }
       setIconPickerOpen(false);
@@ -295,16 +280,38 @@ function App() {
       setEditingIconValue('');
   };
 
+  const handleConfirmMerge = () => {
+      if (!isMergingCategory || !mergeTargetId) return;
+      if (isMergingCategory === mergeTargetId) return;
+
+      const targetCat = categories.find(c => c.id === mergeTargetId);
+      if (!targetCat) return;
+
+      const newLinks = links.map(l =>
+          l.categoryId === isMergingCategory ? { ...l, categoryId: targetCat.id } : l
+      );
+      const newCategories = categories.filter(c => c.id !== isMergingCategory);
+      updateData(newLinks, newCategories);
+      setIsMergingCategory(null);
+      setMergeTargetId('');
+  };
+
+  const handleCancelMerge = () => {
+      setIsMergingCategory(null);
+      setMergeTargetId('');
+  };
+
   // Drag and Drop handlers
   const handleDragStart = (e: React.DragEvent, catId: string) => {
       setDraggedCategoryId(catId);
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', catId);
 
-      // 设置拖拽时的视觉效果
+      // 设置拖拽时的视觉效果 - 使用半透明和阴影
       const target = e.currentTarget;
-      target.classList.add('dragging');
-      target.classList.add('drag-item');
+      target.style.opacity = '0.3';
+      target.style.transform = 'scale(0.98)';
+      target.style.boxShadow = '0 20px 40px rgba(0, 0, 0, 0.3)';
   };
 
   const handleDragOver = (e: React.DragEvent, targetCatId: string) => {
@@ -313,18 +320,23 @@ function App() {
 
       if (!draggedCategoryId || draggedCategoryId === targetCatId) return;
 
-      // 只更新拖拽悬停状态，不改变数组顺序
+      // 确定拖拽方向（向上还是向下）
+      const draggedIndex = categories.findIndex(c => c.id === draggedCategoryId);
+      const targetIndex = categories.findIndex(c => c.id === targetCatId);
+      const direction = draggedIndex > targetIndex ? 'up' : 'down';
+
       setDragOverCategoryId(targetCatId);
+      setDragDirection(direction);
   };
 
-  const handleDragLeave = (e: React.DragEvent, targetCatId: string) => {
-      // 当离开元素且不是进入子元素时才移除效果
-      if (dragOverCategoryId === targetCatId) {
-          const relatedTarget = e.relatedTarget as HTMLElement;
-          const currentTarget = e.currentTarget;
-          if (!currentTarget.contains(relatedTarget)) {
-              setDragOverCategoryId(null);
-          }
+  const handleDragLeave = (e: React.DragEvent, _targetCatId: string) => {
+      const relatedTarget = e.relatedTarget as HTMLElement;
+      const currentTarget = e.currentTarget;
+
+      // 只有真正离开元素时才清除状态
+      if (!currentTarget.contains(relatedTarget)) {
+          setDragOverCategoryId(null);
+          setDragDirection(null);
       }
   };
 
@@ -333,10 +345,11 @@ function App() {
 
       if (!draggedCategoryId || draggedCategoryId === targetCatId) {
           setDragOverCategoryId(null);
+          setDragDirection(null);
           return;
       }
 
-      // 在放置时才更新数组顺序
+      // 在放置时更新数组顺序
       const newCategories = [...categories];
       const draggedIndex = newCategories.findIndex(c => c.id === draggedCategoryId);
       const targetIndex = newCategories.findIndex(c => c.id === targetCatId);
@@ -350,19 +363,24 @@ function App() {
 
       setDragOverCategoryId(null);
       setDraggedCategoryId(null);
+      setDragDirection(null);
 
+      // 重置样式
       const target = e.currentTarget;
-      target.classList.remove('drag-over');
+      target.style.opacity = '';
+      target.style.transform = '';
+      target.style.boxShadow = '';
   };
 
   const handleDragEnd = (e: React.DragEvent, catId: string) => {
       const target = e.currentTarget;
-      target.classList.remove('dragging');
-      target.classList.remove('drag-over');
-      target.classList.remove('drag-item');
+      target.style.opacity = '';
+      target.style.transform = '';
+      target.style.boxShadow = '';
 
       setDragOverCategoryId(null);
       setDraggedCategoryId(null);
+      setDragDirection(null);
   };
 
   // --- Helpers ---
@@ -487,72 +505,100 @@ function App() {
   }, [siteSettings]);
 
   useEffect(() => {
-      const handleClickOutside = (e: MouseEvent) => {
-          if (openMenuId) setOpenMenuId(null);
-          if (contextMenu && contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
-             setContextMenu(null);
-          }
-          // Close category context menu when clicking outside
-          if (categoryContextMenu && categoryContextMenuRef.current && !categoryContextMenuRef.current.contains(e.target as Node)) {
-              setCategoryContextMenu(null);
-          }
-          // Close merge modal when clicking outside (handled by modal's backdrop click)
-          // Close search engine selector when clicking outside
-          if (showEngineSelector && searchEngineSelectorRef.current && !searchEngineSelectorRef.current.contains(e.target as Node)) {
-              setShowEngineSelector(false);
-          }
-          // Close icon picker when clicking outside
+      // 关闭所有菜单的统一处理函数
+      const closeAllMenus = () => {
+          if (contextMenu) setContextMenu(null);
+          if (categoryContextMenu) setCategoryContextMenu(null);
+          if (showEngineSelector) setShowEngineSelector(false);
           if (iconPickerOpen) {
-              const target = e.target as Node;
+              setIconPickerOpen(false);
+              setIconPickerTarget(null);
+          }
+          if (renamingCategoryId) {
+              handleCancelRename();
+          }
+          if (isAddingCategory) {
+              handleCancelAddCategory();
+          }
+          if (isMergingCategory) {
+              handleCancelMerge();
+          }
+          if (openMenuId) setOpenMenuId(null);
+      };
+
+      const handleClickOutside = (e: MouseEvent) => {
+          const target = e.target as Node;
+
+          // 处理链接右键菜单
+          if (contextMenu && contextMenuRef.current) {
+              if (!contextMenuRef.current.contains(target)) {
+                  setContextMenu(null);
+              }
+          }
+
+          // 处理分类右键菜单
+          if (categoryContextMenu && categoryContextMenuRef.current) {
+              if (!categoryContextMenuRef.current.contains(target)) {
+                  setCategoryContextMenu(null);
+              }
+          }
+
+          // 处理搜索引擎选择器
+          if (showEngineSelector && searchEngineSelectorRef.current) {
+              if (!searchEngineSelectorRef.current.contains(target)) {
+                  setShowEngineSelector(false);
+              }
+          }
+
+          // 处理图标选择器
+          if (iconPickerOpen) {
               const iconPickerElement = document.querySelector('[data-icon-picker="true"]');
               if (iconPickerElement && !iconPickerElement.contains(target)) {
                   setIconPickerOpen(false);
                   setIconPickerTarget(null);
               }
           }
-          // Cancel editing/adding when clicking outside
+
+          // 处理编辑中的分类
           if (renamingCategoryId) {
-              const target = e.target as Node;
               const editingElement = document.querySelector(`[data-editing="${renamingCategoryId}"]`);
               if (editingElement && !editingElement.contains(target)) {
                   handleCancelRename();
               }
           }
+
+          // 处理添加中的分类
           if (isAddingCategory) {
-              const target = e.target as Node;
               const addingElement = document.querySelector('[data-adding="true"]');
               if (addingElement && !addingElement.contains(target)) {
                   handleCancelAddCategory();
               }
           }
+
+          // 处理合并中的分类
+          if (isMergingCategory) {
+              const mergingElement = document.querySelector(`[data-merging="${isMergingCategory}"]`);
+              if (mergingElement && !mergingElement.contains(target)) {
+                  handleCancelMerge();
+              }
+          }
       };
 
       const handleScroll = () => {
-         if (contextMenu) setContextMenu(null);
-         if (categoryContextMenu) setCategoryContextMenu(null);
-         if (showEngineSelector) setShowEngineSelector(false);
+         closeAllMenus();
       };
 
+      // 任何点击（左键或右键）都关闭右键菜单
       window.addEventListener('click', handleClickOutside);
+      window.addEventListener('mousedown', handleClickOutside);
       window.addEventListener('scroll', handleScroll, true);
-
-      const handleGlobalContextMenu = (e: MouseEvent) => {
-          // Only close menus if clicking outside of them
-          if (contextMenu && contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
-              setContextMenu(null);
-          }
-          if (categoryContextMenu && categoryContextMenuRef.current && !categoryContextMenuRef.current.contains(e.target as Node)) {
-              setCategoryContextMenu(null);
-          }
-      }
-      window.addEventListener('contextmenu', handleGlobalContextMenu);
 
       return () => {
           window.removeEventListener('click', handleClickOutside);
+          window.removeEventListener('mousedown', handleClickOutside);
           window.removeEventListener('scroll', handleScroll, true);
-          window.removeEventListener('contextmenu', handleGlobalContextMenu);
       }
-  }, [openMenuId, contextMenu, categoryContextMenu, showEngineSelector, iconPickerOpen, renamingCategoryId, isAddingCategory]);
+  }, [openMenuId, contextMenu, categoryContextMenu, showEngineSelector, iconPickerOpen, renamingCategoryId, isAddingCategory, isMergingCategory]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -832,24 +878,31 @@ function App() {
   return (
     <>
       <style>{`
-        .dragging {
-          opacity: 0.4;
-          transform: scale(0.95);
-          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-          cursor: grabbing !important;
+        .category-item {
+          transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                      opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                      box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .drag-over {
-          border: 2px dashed #3b82f6 !important;
-          background-color: rgba(59, 130, 246, 0.1) !important;
+        .category-item.dragging {
+          opacity: 0.3;
+          transform: scale(0.98);
+          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3) !important;
         }
-        .drag-item {
-          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        .category-item.drag-over-up {
+          border-top: 3px solid #3b82f6 !important;
+          background: linear-gradient(to bottom, rgba(59, 130, 246, 0.08), transparent) !important;
         }
-        .drag-item:not(.dragging) {
-          cursor: move;
+        .category-item.drag-over-down {
+          border-bottom: 3px solid #3b82f6 !important;
+          background: linear-gradient(to top, rgba(59, 130, 246, 0.08), transparent) !important;
         }
-        .drag-item:not(.dragging):hover {
-          background-color: rgba(59, 130, 246, 0.05);
+        @keyframes dropPulse {
+          0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
+          70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
+        .category-item.drop-animation {
+          animation: dropPulse 0.4s ease-out;
         }
       `}</style>
       <div className="flex h-screen overflow-hidden text-slate-900 dark:text-slate-50">
@@ -883,72 +936,6 @@ function App() {
           </div>
       )}
 
-      {/* Merge Category Modal */}
-      {isMergingCategory && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md" onClick={handleCancelMerge}>
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-200 dark:border-slate-700 p-8 relative" onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={handleCancelMerge}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-            >
-              <X size={20} />
-            </button>
-            <div className="flex flex-col items-center mb-6">
-              <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mb-4 text-purple-600 dark:text-purple-400">
-                <Merge size={32} />
-              </div>
-              <h2 className="text-xl font-bold dark:text-white">合并分类</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400 text-center mt-2">
-                将此分类的所有链接合并到目标分类
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  选择目标分类
-                </label>
-                <select
-                  value={mergeTargetId}
-                  onChange={(e) => setMergeTargetId(e.target.value)}
-                  className="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-purple-500 outline-none transition-all"
-                  autoFocus
-                >
-                  <option value="">请选择...</option>
-                  {categories
-                    .filter(c => c.id !== isMergingCategory)
-                    .map(cat => {
-                      const isEmoji = cat.icon && cat.icon.length <= 4 && !/^[a-zA-Z]+$/.test(cat.icon);
-                      return (
-                        <option key={cat.id} value={cat.id}>
-                          {isEmoji ? cat.icon + ' ' : ''}{cat.name}
-                        </option>
-                      );
-                    })
-                  }
-                </select>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={handleCancelMerge}
-                  className="flex-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 font-medium py-3 px-4 rounded-xl transition-colors"
-                >
-                  取消
-                </button>
-                <button
-                  onClick={handleConfirmMerge}
-                  disabled={!mergeTargetId}
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-lg shadow-purple-500/30"
-                >
-                  确认合并
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* QR Code Modal */}
       {qrCodeLink && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setQrCodeLink(null)}>
@@ -964,72 +951,6 @@ function App() {
                   <p className="text-xs text-slate-500 max-w-[200px] truncate">{qrCodeLink.url}</p>
               </div>
           </div>
-      )}
-
-      {/* Merge Category Modal */}
-      {isMergingCategory && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md" onClick={handleCancelMerge}>
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-200 dark:border-slate-700 p-8 relative" onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={handleCancelMerge}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-            >
-              <X size={20} />
-            </button>
-            <div className="flex flex-col items-center mb-6">
-              <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mb-4 text-purple-600 dark:text-purple-400">
-                <Merge size={32} />
-              </div>
-              <h2 className="text-xl font-bold dark:text-white">合并分类</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400 text-center mt-2">
-                将此分类的所有链接合并到目标分类
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  选择目标分类
-                </label>
-                <select
-                  value={mergeTargetId}
-                  onChange={(e) => setMergeTargetId(e.target.value)}
-                  className="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-purple-500 outline-none transition-all"
-                  autoFocus
-                >
-                  <option value="">请选择...</option>
-                  {categories
-                    .filter(c => c.id !== isMergingCategory)
-                    .map(cat => {
-                      const isEmoji = cat.icon && cat.icon.length <= 4 && !/^[a-zA-Z]+$/.test(cat.icon);
-                      return (
-                        <option key={cat.id} value={cat.id}>
-                          {isEmoji ? cat.icon + ' ' : ''}{cat.name}
-                        </option>
-                      );
-                    })
-                  }
-                </select>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={handleCancelMerge}
-                  className="flex-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 font-medium py-3 px-4 rounded-xl transition-colors"
-                >
-                  取消
-                </button>
-                <button
-                  onClick={handleConfirmMerge}
-                  disabled={!mergeTargetId}
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-lg shadow-purple-500/30"
-                >
-                  确认合并
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
       )}
 
       {/* Delete Link Confirmation Modal */}
@@ -1073,67 +994,42 @@ function App() {
         </div>
       )}
 
-      {/* Merge Category Modal */}
-      {isMergingCategory && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md" onClick={handleCancelMerge}>
+      {/* Delete Category Confirmation Modal */}
+      {deleteCategoryConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md" onClick={() => setDeleteCategoryConfirm(null)}>
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-200 dark:border-slate-700 p-8 relative" onClick={(e) => e.stopPropagation()}>
             <button
-              onClick={handleCancelMerge}
+              onClick={() => setDeleteCategoryConfirm(null)}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
             >
               <X size={20} />
             </button>
             <div className="flex flex-col items-center mb-6">
-              <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mb-4 text-purple-600 dark:text-purple-400">
-                <Merge size={32} />
+              <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4 text-red-600 dark:text-red-400">
+                <AlertTriangle size={32} />
               </div>
-              <h2 className="text-xl font-bold dark:text-white">合并分类</h2>
+              <h2 className="text-xl font-bold dark:text-white">温馨提示</h2>
               <p className="text-sm text-slate-500 dark:text-slate-400 text-center mt-2">
-                将此分类的所有链接合并到目标分类
+                确定要删除分类"{deleteCategoryConfirm.name}"吗？
+              </p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 text-center mt-1">
+                该分类下的 {links.filter(l => l.categoryId === deleteCategoryConfirm.id).length} 个链接将一并删除，此操作不可恢复。
               </p>
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  选择目标分类
-                </label>
-                <select
-                  value={mergeTargetId}
-                  onChange={(e) => setMergeTargetId(e.target.value)}
-                  className="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-purple-500 outline-none transition-all"
-                  autoFocus
-                >
-                  <option value="">请选择...</option>
-                  {categories
-                    .filter(c => c.id !== isMergingCategory)
-                    .map(cat => {
-                      const isEmoji = cat.icon && cat.icon.length <= 4 && !/^[a-zA-Z]+$/.test(cat.icon);
-                      return (
-                        <option key={cat.id} value={cat.id}>
-                          {isEmoji ? cat.icon + ' ' : ''}{cat.name}
-                        </option>
-                      );
-                    })
-                  }
-                </select>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={handleCancelMerge}
-                  className="flex-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 font-medium py-3 px-4 rounded-xl transition-colors"
-                >
-                  取消
-                </button>
-                <button
-                  onClick={handleConfirmMerge}
-                  disabled={!mergeTargetId}
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-lg shadow-purple-500/30"
-                >
-                  确认合并
-                </button>
-              </div>
+            <div className="space-y-3">
+              <button
+                onClick={handleConfirmDeleteCategory}
+                className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-lg shadow-red-500/30 flex items-center justify-center gap-2"
+              >
+                确认删除
+              </button>
+              <button
+                onClick={() => setDeleteCategoryConfirm(null)}
+                className="w-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 font-medium py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+              >
+                取消
+              </button>
             </div>
           </div>
         </div>
@@ -1256,11 +1152,11 @@ function App() {
                     onDragLeave={(e) => handleDragLeave(e, cat.id)}
                     onDrop={(e) => handleDrop(e, cat.id)}
                     onDragEnd={(e) => handleDragEnd(e, cat.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all group relative drag-item ${
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all group relative category-item ${
                       activeCategory === cat.id
                         ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-medium'
                         : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-                    } ${isSorting ? 'cursor-move' : ''} ${draggedCategoryId === cat.id ? 'dragging' : ''} ${dragOverCategoryId === cat.id ? 'drag-over' : ''}`}
+                    } ${isSorting ? 'cursor-move' : 'cursor-pointer'} ${draggedCategoryId === cat.id ? 'dragging' : ''} ${dragOverCategoryId === cat.id ? dragDirection === 'up' ? 'drag-over-up' : 'drag-over-down' : ''}`}
                     onContextMenu={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -1325,6 +1221,41 @@ function App() {
                                 </button>
                             </div>
                         </div>
+                    ) : isMergingCategory === cat.id ? (
+                        <div data-merging={isMergingCategory} className="w-full" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center gap-2">
+                                <select
+                                    value={mergeTargetId}
+                                    onChange={(e) => setMergeTargetId(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleConfirmMerge();
+                                        if (e.key === 'Escape') handleCancelMerge();
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="flex-1 bg-white dark:bg-slate-700 text-sm px-2 py-1 rounded border border-blue-300 dark:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    autoFocus
+                                >
+                                    <option value="">选择目标分类</option>
+                                    {categories
+                                        .filter(c => c.id !== isMergingCategory)
+                                        .map(c => {
+                                            const catEmoji = c.icon && c.icon.length <= 4 && !/^[a-zA-Z]+$/.test(c.icon);
+                                            return (
+                                                <option key={c.id} value={c.id}>
+                                                    {catEmoji ? c.icon + ' ' : ''}{c.name}
+                                                </option>
+                                            );
+                                        })
+                                    }
+                                </select>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); handleConfirmMerge(); }}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors shrink-0"
+                                >
+                                    确认
+                                </button>
+                            </div>
+                        </div>
                     ) : (
                         <div className="w-full flex items-center gap-3" onClick={() => !isSorting && scrollToCategory(cat.id)} onContextMenu={(e) => {
                             e.preventDefault();
@@ -1348,8 +1279,19 @@ function App() {
 
             {/* Add Category Form */}
             {isAddingCategory && (
-                <div data-adding="true" className="px-4 py-2.5 space-y-2 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
-                    <div className="flex items-center gap-2">
+                <div data-adding="true" className="w-full" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-2 mb-2">
+                        <div
+                            onClick={() => handleOpenIconPicker('add')}
+                            className="p-1.5 rounded-lg transition-colors flex items-center justify-center cursor-pointer bg-blue-600 hover:bg-blue-700 text-white"
+                            title="点击更换图标"
+                        >
+                            {newCategoryIcon && newCategoryIcon.length <= 4 && !/^[a-zA-Z]+$/.test(newCategoryIcon) ? (
+                                <span className="text-base leading-none">{newCategoryIcon}</span>
+                            ) : (
+                                <Icon name={newCategoryIcon} size={16} />
+                            )}
+                        </div>
                         <input
                             type="text"
                             value={newCategoryName}
@@ -1360,30 +1302,32 @@ function App() {
                             }}
                             onClick={(e) => e.stopPropagation()}
                             placeholder="分类名称"
-                            className="flex-1 bg-white dark:bg-slate-700 text-sm px-2 py-1 rounded border border-blue-300 dark:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="flex-1 min-w-0 bg-white dark:bg-slate-700 text-sm px-2 py-1 rounded border border-blue-300 dark:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
                             autoFocus
                         />
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="relative flex-1">
+                            <Lock size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input
+                                type="password"
+                                value={newCategoryPassword}
+                                onChange={(e) => setNewCategoryPassword(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleConfirmAddCategory();
+                                    if (e.key === 'Escape') handleCancelAddCategory();
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                placeholder="密码(可选)"
+                                className="w-full bg-white dark:bg-slate-700 text-sm pl-8 pr-2 py-1 rounded border border-blue-300 dark:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
                         <button
                             onClick={(e) => { e.stopPropagation(); handleConfirmAddCategory(); }}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-medium transition-colors shrink-0"
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors shrink-0"
                         >
                             确认
                         </button>
-                    </div>
-                    <div className="relative">
-                        <Lock size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input
-                            type="password"
-                            value={newCategoryPassword}
-                            onChange={(e) => setNewCategoryPassword(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') handleConfirmAddCategory();
-                                if (e.key === 'Escape') handleCancelAddCategory();
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                            placeholder="密码(可选)"
-                            className="w-full bg-white dark:bg-slate-700 text-sm pl-8 pr-2 py-1 rounded border border-blue-300 dark:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
                     </div>
                 </div>
             )}
@@ -1486,72 +1430,6 @@ function App() {
         </div>
       )}
 
-      {/* Merge Category Modal */}
-      {isMergingCategory && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md" onClick={handleCancelMerge}>
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-200 dark:border-slate-700 p-8 relative" onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={handleCancelMerge}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-            >
-              <X size={20} />
-            </button>
-            <div className="flex flex-col items-center mb-6">
-              <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mb-4 text-purple-600 dark:text-purple-400">
-                <Merge size={32} />
-              </div>
-              <h2 className="text-xl font-bold dark:text-white">合并分类</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400 text-center mt-2">
-                将此分类的所有链接合并到目标分类
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  选择目标分类
-                </label>
-                <select
-                  value={mergeTargetId}
-                  onChange={(e) => setMergeTargetId(e.target.value)}
-                  className="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-purple-500 outline-none transition-all"
-                  autoFocus
-                >
-                  <option value="">请选择...</option>
-                  {categories
-                    .filter(c => c.id !== isMergingCategory)
-                    .map(cat => {
-                      const isEmoji = cat.icon && cat.icon.length <= 4 && !/^[a-zA-Z]+$/.test(cat.icon);
-                      return (
-                        <option key={cat.id} value={cat.id}>
-                          {isEmoji ? cat.icon + ' ' : ''}{cat.name}
-                        </option>
-                      );
-                    })
-                  }
-                </select>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={handleCancelMerge}
-                  className="flex-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 font-medium py-3 px-4 rounded-xl transition-colors"
-                >
-                  取消
-                </button>
-                <button
-                  onClick={handleConfirmMerge}
-                  disabled={!mergeTargetId}
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-lg shadow-purple-500/30"
-                >
-                  确认合并
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Icon Picker Modal */}
       {iconPickerOpen && (
         <div
@@ -1588,72 +1466,6 @@ function App() {
                 </button>
               );
             })}
-          </div>
-        </div>
-      )}
-
-      {/* Merge Category Modal */}
-      {isMergingCategory && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md" onClick={handleCancelMerge}>
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-200 dark:border-slate-700 p-8 relative" onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={handleCancelMerge}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-            >
-              <X size={20} />
-            </button>
-            <div className="flex flex-col items-center mb-6">
-              <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mb-4 text-purple-600 dark:text-purple-400">
-                <Merge size={32} />
-              </div>
-              <h2 className="text-xl font-bold dark:text-white">合并分类</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400 text-center mt-2">
-                将此分类的所有链接合并到目标分类
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  选择目标分类
-                </label>
-                <select
-                  value={mergeTargetId}
-                  onChange={(e) => setMergeTargetId(e.target.value)}
-                  className="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-purple-500 outline-none transition-all"
-                  autoFocus
-                >
-                  <option value="">请选择...</option>
-                  {categories
-                    .filter(c => c.id !== isMergingCategory)
-                    .map(cat => {
-                      const isEmoji = cat.icon && cat.icon.length <= 4 && !/^[a-zA-Z]+$/.test(cat.icon);
-                      return (
-                        <option key={cat.id} value={cat.id}>
-                          {isEmoji ? cat.icon + ' ' : ''}{cat.name}
-                        </option>
-                      );
-                    })
-                  }
-                </select>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={handleCancelMerge}
-                  className="flex-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 font-medium py-3 px-4 rounded-xl transition-colors"
-                >
-                  取消
-                </button>
-                <button
-                  onClick={handleConfirmMerge}
-                  disabled={!mergeTargetId}
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-lg shadow-purple-500/30"
-                >
-                  确认合并
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       )}
