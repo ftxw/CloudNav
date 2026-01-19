@@ -79,11 +79,16 @@ function App() {
   const [renamingCategoryId, setRenamingCategoryId] = useState<string | null>(null);
   const [renamingValue, setRenamingValue] = useState('');
   const [editingPasswordValue, setEditingPasswordValue] = useState('');
+  const [editingIconValue, setEditingIconValue] = useState('');
 
   // Add Category Mode
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryPassword, setNewCategoryPassword] = useState('');
+  const [newCategoryIcon, setNewCategoryIcon] = useState('');
+
+  // Merge Category Mode
+  const [isMergingCategory, setIsMergingCategory] = useState<string | null>(null);
 
   // Drag and Drop Sort State
   const [draggedCategoryId, setDraggedCategoryId] = useState<string | null>(null);
@@ -164,26 +169,29 @@ function App() {
       setRenamingCategoryId(cat.id);
       setRenamingValue(cat.name);
       setEditingPasswordValue(cat.password || '');
+      setEditingIconValue(cat.icon);
       setCategoryContextMenu(null);
   };
 
   const handleMergeCategory = (cat: Category) => {
       if (!authToken) { setIsAuthOpen(true); return; }
-      const targetId = prompt('请输入要合并到的分类ID或名称：');
-      if (!targetId) return;
+      setIsMergingCategory(cat.id);
+      setCategoryContextMenu(null);
+  };
 
-      const targetCat = categories.find(c => c.id === targetId || c.name === targetId);
-      if (!targetCat) {
-          alert('未找到目标分类');
-          return;
-      }
+  const handleSelectMergeTarget = (targetCatId: string) => {
+      if (!isMergingCategory) return;
+      if (isMergingCategory === targetCatId) return;
+
+      const targetCat = categories.find(c => c.id === targetCatId);
+      if (!targetCat) return;
 
       const newLinks = links.map(l =>
-          l.categoryId === cat.id ? { ...l, categoryId: targetCat.id } : l
+          l.categoryId === isMergingCategory ? { ...l, categoryId: targetCat.id } : l
       );
-      const newCategories = categories.filter(c => c.id !== cat.id);
+      const newCategories = categories.filter(c => c.id !== isMergingCategory);
       updateData(newLinks, newCategories);
-      setCategoryContextMenu(null);
+      setIsMergingCategory(null);
   };
 
   const handleDeleteCategory = (catId: string) => {
@@ -210,7 +218,7 @@ function App() {
       const newCategory: Category = {
           id: Date.now().toString(),
           name: newCategoryName.trim(),
-          icon: 'Folder',
+          icon: newCategoryIcon || 'Folder',
           password: newCategoryPassword.trim() || undefined
       };
 
@@ -219,35 +227,41 @@ function App() {
       setIsAddingCategory(false);
       setNewCategoryName('');
       setNewCategoryPassword('');
+      setNewCategoryIcon('');
   };
 
   const handleCancelAddCategory = () => {
       setIsAddingCategory(false);
       setNewCategoryName('');
       setNewCategoryPassword('');
+      setNewCategoryIcon('');
   };
 
   const handleConfirmRename = () => {
       if (!renamingCategoryId || !renamingValue.trim()) return;
       const newCategories = categories.map(cat =>
-          cat.id === renamingCategoryId ? { ...cat, name: renamingValue.trim(), password: editingPasswordValue.trim() || undefined } : cat
+          cat.id === renamingCategoryId ? { ...cat, name: renamingValue.trim(), password: editingPasswordValue.trim() || undefined, icon: editingIconValue } : cat
       );
       updateData(links, newCategories);
       setRenamingCategoryId(null);
       setRenamingValue('');
       setEditingPasswordValue('');
+      setEditingIconValue('');
   };
 
   const handleCancelRename = () => {
       setRenamingCategoryId(null);
       setRenamingValue('');
       setEditingPasswordValue('');
+      setEditingIconValue('');
   };
 
   // Drag and Drop handlers
   const handleDragStart = (e: React.DragEvent, catId: string) => {
       setDraggedCategoryId(catId);
       e.dataTransfer.effectAllowed = 'move';
+      // 添加拖拽动画效果
+      e.currentTarget.classList.add('dragging');
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -269,10 +283,13 @@ function App() {
           updateData(links, newCategories);
       }
       setDraggedCategoryId(null);
+      // 移除拖拽动画类
+      e.currentTarget.classList.remove('dragging');
   };
 
-  const handleDragEnd = () => {
+  const handleDragEnd = (e: React.DragEvent) => {
       setDraggedCategoryId(null);
+      e.currentTarget.classList.remove('dragging');
   };
 
   // --- Helpers ---
@@ -406,6 +423,9 @@ function App() {
           if (categoryContextMenu && contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
               setCategoryContextMenu(null);
           }
+          if (isMergingCategory) {
+              setIsMergingCategory(null);
+          }
           // Close search engine selector when clicking outside
           if (showEngineSelector && searchEngineSelectorRef.current && !searchEngineSelectorRef.current.contains(e.target as Node)) {
               setShowEngineSelector(false);
@@ -430,6 +450,7 @@ function App() {
       const handleScroll = () => {
          if (contextMenu) setContextMenu(null);
          if (categoryContextMenu) setCategoryContextMenu(null);
+         if (isMergingCategory) setIsMergingCategory(null);
          if (showEngineSelector) setShowEngineSelector(false);
       };
 
@@ -437,9 +458,11 @@ function App() {
       window.addEventListener('scroll', handleScroll, true);
 
       const handleGlobalContextMenu = (e: MouseEvent) => {
-          if (contextMenu) {
+          if (contextMenu || categoryContextMenu || isMergingCategory) {
               e.preventDefault();
               setContextMenu(null);
+              setCategoryContextMenu(null);
+              setIsMergingCategory(null);
           }
       }
       window.addEventListener('contextmenu', handleGlobalContextMenu);
@@ -449,7 +472,7 @@ function App() {
           window.removeEventListener('scroll', handleScroll, true);
           window.removeEventListener('contextmenu', handleGlobalContextMenu);
       }
-  }, [openMenuId, contextMenu, categoryContextMenu, showEngineSelector, renamingCategoryId, isAddingCategory]);
+  }, [openMenuId, contextMenu, categoryContextMenu, showEngineSelector, renamingCategoryId, isAddingCategory, isMergingCategory]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -727,7 +750,15 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden text-slate-900 dark:text-slate-50">
+    <>
+      <style>{`
+        .dragging {
+          opacity: 0.5;
+          transform: scale(1.02);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+      `}</style>
+      <div className="flex h-screen overflow-hidden text-slate-900 dark:text-slate-50">
       
       {/* Right Click Context Menu */}
       {contextMenu && (
@@ -980,14 +1011,14 @@ function App() {
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(e, cat.id)}
                     onDragEnd={handleDragEnd}
-                    className={`w-full transition-all group relative ${
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all group relative ${
                       activeCategory === cat.id
                         ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-medium'
                         : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
                     } ${isSorting ? 'cursor-move' : ''} ${draggedCategoryId === cat.id ? 'opacity-50' : ''}`}
                     onContextMenu={(e) => {
                         e.preventDefault();
-                        if (isSorting || isRenaming || isAddingCategory) return;
+                        if (isSorting || isRenaming || isAddingCategory || isMergingCategory) return;
                         let x = e.clientX;
                         let y = e.clientY;
                         // Boundary adjustment
@@ -997,24 +1028,37 @@ function App() {
                     }}
                   >
                     {isRenaming ? (
-                        <div data-editing={renamingCategoryId} className="px-4 py-2.5 space-y-2">
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs text-slate-400 whitespace-nowrap">名称:</span>
-                                <input
-                                    type="text"
-                                    value={renamingValue}
-                                    onChange={(e) => setRenamingValue(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') handleConfirmRename();
-                                        if (e.key === 'Escape') handleCancelRename();
-                                    }}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="flex-1 bg-white dark:bg-slate-700 text-sm px-2 py-1 rounded border border-blue-300 dark:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    autoFocus
-                                />
+                        <div data-editing={renamingCategoryId} className="flex-1 flex items-center gap-2 w-full" onClick={(e) => e.stopPropagation()}>
+                            <div
+                                className="p-1.5 rounded-lg transition-colors flex items-center justify-center cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-700"
+                                title="点击更换图标"
+                            >
+                                {isEmoji ? (
+                                    <span className="text-base leading-none">{editingIconValue}</span>
+                                ) : (
+                                    <Icon name={editingIconValue} size={16} />
+                                )}
                             </div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs text-slate-400 whitespace-nowrap">密码:</span>
+                            <input
+                                type="text"
+                                value={renamingValue}
+                                onChange={(e) => setRenamingValue(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleConfirmRename();
+                                    if (e.key === 'Escape') handleCancelRename();
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="flex-1 bg-white dark:bg-slate-700 text-sm px-2 py-1 rounded border border-blue-300 dark:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                autoFocus
+                            />
+                            <button
+                                onClick={(e) => { e.stopPropagation(); handleConfirmRename(); }}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-medium transition-colors shrink-0"
+                            >
+                                确认
+                            </button>
+                            <div className="relative flex-1">
+                                <Lock size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
                                 <input
                                     type="password"
                                     value={editingPasswordValue}
@@ -1024,27 +1068,13 @@ function App() {
                                         if (e.key === 'Escape') handleCancelRename();
                                     }}
                                     onClick={(e) => e.stopPropagation()}
-                                    placeholder="留空则不设置密码"
-                                    className="flex-1 bg-white dark:bg-slate-700 text-sm px-2 py-1 rounded border border-blue-300 dark:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    placeholder="密码"
+                                    className="w-full bg-white dark:bg-slate-700 text-sm pl-8 pr-2 py-1 rounded border border-blue-300 dark:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 />
-                            </div>
-                            <div className="flex items-center gap-2 justify-end">
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); handleConfirmRename(); }}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
-                                >
-                                    确认
-                                </button>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); handleCancelRename(); }}
-                                    className="bg-slate-400 hover:bg-slate-500 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
-                                >
-                                    取消
-                                </button>
                             </div>
                         </div>
                     ) : (
-                        <div className="w-full flex items-center gap-3 px-4 py-2.5" onClick={() => !isSorting && scrollToCategory(cat.id)}>
+                        <div className="w-full flex items-center gap-3" onClick={() => !isSorting && scrollToCategory(cat.id)}>
                             <div className={`p-1.5 rounded-lg transition-colors flex items-center justify-center ${activeCategory === cat.id ? 'bg-blue-100 dark:bg-blue-800' : 'bg-slate-100 dark:bg-slate-800'}`}>
                               {isLocked ? <Lock size={16} className="text-amber-500" /> : (isEmoji ? <span className="text-base leading-none">{cat.icon}</span> : <Icon name={cat.icon} size={16} />)}
                             </div>
@@ -1055,11 +1085,32 @@ function App() {
                 );
             })}
 
+            {/* Merge Selection Menu */}
+            {isMergingCategory && (
+                <div className="px-4 py-2.5 space-y-2 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+                    <div className="text-xs text-slate-500 dark:text-slate-400 mb-2">选择要合并到的分类:</div>
+                    {categories.filter(c => c.id !== isMergingCategory).map(cat => {
+                        const isEmoji = cat.icon && cat.icon.length <= 4 && !/^[a-zA-Z]+$/.test(cat.icon);
+                        return (
+                            <button
+                                key={cat.id}
+                                onClick={() => handleSelectMergeTarget(cat.id)}
+                                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-800/50 text-left transition-colors"
+                            >
+                                <div className="p-1 rounded bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+                                    {isEmoji ? <span className="text-sm">{cat.icon}</span> : <Icon name={cat.icon} size={14} />}
+                                </div>
+                                <span className="text-sm">{cat.name}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+
             {/* Add Category Form */}
             {isAddingCategory && (
                 <div data-adding="true" className="px-4 py-2.5 space-y-2 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
                     <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-400 whitespace-nowrap">名称:</span>
                         <input
                             type="text"
                             value={newCategoryName}
@@ -1069,12 +1120,19 @@ function App() {
                                 if (e.key === 'Escape') handleCancelAddCategory();
                             }}
                             onClick={(e) => e.stopPropagation()}
+                            placeholder="分类名称"
                             className="flex-1 bg-white dark:bg-slate-700 text-sm px-2 py-1 rounded border border-blue-300 dark:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
                             autoFocus
                         />
+                        <button
+                            onClick={(e) => { e.stopPropagation(); handleConfirmAddCategory(); }}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-medium transition-colors shrink-0"
+                        >
+                            确认
+                        </button>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-400 whitespace-nowrap">密码:</span>
+                    <div className="relative">
+                        <Lock size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
                         <input
                             type="password"
                             value={newCategoryPassword}
@@ -1084,23 +1142,9 @@ function App() {
                                 if (e.key === 'Escape') handleCancelAddCategory();
                             }}
                             onClick={(e) => e.stopPropagation()}
-                            placeholder="留空则不设置密码"
-                            className="flex-1 bg-white dark:bg-slate-700 text-sm px-2 py-1 rounded border border-blue-300 dark:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="密码(可选)"
+                            className="w-full bg-white dark:bg-slate-700 text-sm pl-8 pr-2 py-1 rounded border border-blue-300 dark:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
-                    </div>
-                    <div className="flex items-center gap-2 justify-end">
-                        <button
-                            onClick={(e) => { e.stopPropagation(); handleConfirmAddCategory(); }}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
-                        >
-                            确认
-                        </button>
-                        <button
-                            onClick={(e) => { e.stopPropagation(); handleCancelAddCategory(); }}
-                            className="bg-slate-400 hover:bg-slate-500 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
-                        >
-                            取消
-                        </button>
                     </div>
                 </div>
             )}
@@ -1429,6 +1473,7 @@ function App() {
         aiConfig={aiConfig}
       />
     </div>
+    </>
   );
 }
 
