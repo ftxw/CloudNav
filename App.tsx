@@ -1010,7 +1010,23 @@ function App() {
 
         <div className="p-4 lg:p-8 space-y-8">
 
-            {pinnedLinks.length > 0 && !searchQuery && (
+            {/* 全部链接模式：置顶链接在最顶部显示 */}
+            {activeCategory === 'all' && pinnedLinks.length > 0 && !searchQuery && (
+                <section>
+                    <div className="flex items-center gap-2 mb-4">
+                        <Pin size={16} className="text-blue-500 fill-blue-500" />
+                        <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                            置顶 / 常用
+                        </h2>
+                    </div>
+                    <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
+                        {pinnedLinks.map(link => renderLinkCard(link))}
+                    </div>
+                </section>
+            )}
+
+            {/* 单独分类模式：置顶链接在该分类之前显示 */}
+            {activeCategory !== 'all' && pinnedLinks.length > 0 && !searchQuery && (
                 <section>
                     <div className="flex items-center gap-2 mb-4">
                         <Pin size={16} className="text-blue-500 fill-blue-500" />
@@ -1029,8 +1045,7 @@ function App() {
                 if (activeCategory !== 'all' && activeCategory !== cat.id) return null;
 
                 let catLinks = searchResults.filter(l => l.categoryId === cat.id);
-                const catPinnedLinks = catLinks.filter(l => l.pinned === true);
-                const catOtherLinks = catLinks.filter(l => l.pinned !== true);
+                const catOtherLinks = catLinks.filter(l => !l.pinned);
                 const isLocked = cat.password && !unlockedCategoryIds.has(cat.id);
 
                 // Logic Fix: If External Search, do NOT hide categories based on links
@@ -1068,37 +1083,16 @@ function App() {
                                 </button>
                              </div>
                         ) : (
-                             <>
+                             <div className={`grid gap-3 ${catLinks.length === 0 ? '' : siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
                                 {catLinks.length === 0 ? (
                                     <div className="text-center py-8 text-slate-400 text-sm italic">
                                         暂无链接
                                     </div>
                                 ) : (
-                                    <>
-                                        {/* 显示置顶链接 */}
-                                        {pinnedLinks.length > 0 && (
-                                            <div className="mb-4">
-                                                <div className="flex items-center gap-2 mb-3">
-                                                    <Pin size={16} className="text-blue-500 fill-blue-500" />
-                                                    <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                                                        置顶链接
-                                                    </h3>
-                                                </div>
-                                                <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
-                                                    {pinnedLinks.map(link => renderLinkCard(link))}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* 显示其他链接 */}
-                                        {catOtherLinks.length > 0 && (
-                                            <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
-                                                {catOtherLinks.map(link => renderLinkCard(link))}
-                                            </div>
-                                        )}
-                                    </>
+                                    catLinks.map(link => renderLinkCard(link))
                                 )}
-                             </>
+                             </div>
+                        )}
                         )}
                     </section>
                 );
