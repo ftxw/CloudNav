@@ -1076,7 +1076,7 @@ function App() {
                                 ) : (
                                     <>
                                         {/* 显示置顶链接 */}
-                                        {catPinnedLinks.length > 0 && (
+                                        {pinnedLinks.length > 0 && (
                                             <div className="mb-4">
                                                 <div className="flex items-center gap-2 mb-3">
                                                     <Pin size={16} className="text-blue-500 fill-blue-500" />
@@ -1085,7 +1085,7 @@ function App() {
                                                     </h3>
                                                 </div>
                                                 <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
-                                                    {catPinnedLinks.map(link => renderLinkCard(link))}
+                                                    {pinnedLinks.map(link => renderLinkCard(link))}
                                                 </div>
                                             </div>
                                         )}
