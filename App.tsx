@@ -459,10 +459,14 @@ function App() {
       window.addEventListener('scroll', handleScroll, true);
 
       const handleGlobalContextMenu = (e: MouseEvent) => {
-          if (contextMenu || categoryContextMenu || isMergingCategory) {
-              e.preventDefault();
+          // Only close menus if clicking outside of them
+          if (contextMenu && contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
               setContextMenu(null);
+          }
+          if (categoryContextMenu && categoryContextMenuRef.current && !categoryContextMenuRef.current.contains(e.target as Node)) {
               setCategoryContextMenu(null);
+          }
+          if (isMergingCategory) {
               setIsMergingCategory(null);
           }
       }
