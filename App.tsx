@@ -186,29 +186,29 @@ function App() {
   };
 
   const handleRenameCategory = (cat: Category) => {
+      setCategoryContextMenu(null);
       if (!authToken) { setIsAuthOpen(true); return; }
       setCategoryModalMode('edit');
       setCategoryModalCategory(cat);
       setCategoryModalOpen(true);
-      setCategoryContextMenu(null);
   };
 
   const handleMergeCategory = (cat: Category) => {
+      setCategoryContextMenu(null);
       if (!authToken) { setIsAuthOpen(true); return; }
       setCategoryModalMode('merge');
       setCategoryModalCategory(cat);
       setCategoryModalOpen(true);
-      setCategoryContextMenu(null);
   };
 
   const handleDeleteCategory = (catId: string) => {
+      setCategoryContextMenu(null);
       if (!authToken) { setIsAuthOpen(true); return; }
 
       const cat = categories.find(c => c.id === catId);
       if (!cat) return;
 
       setDeleteCategoryConfirm(cat);
-      setCategoryContextMenu(null);
   };
 
   const handleConfirmDeleteCategory = () => {
@@ -797,7 +797,7 @@ function App() {
                  <QrCode size={16} className="text-slate-400"/> <span>显示二维码</span>
              </button>
              <div className="h-px bg-slate-100 dark:bg-slate-700 my-1 mx-2"/>
-             <button onClick={() => { if(!authToken) setIsAuthOpen(true); else { setEditingLink(contextMenu.link!); setIsModalOpen(true); setContextMenu(null); }}} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors text-left">
+             <button onClick={() => { setContextMenu(null); if(!authToken) setIsAuthOpen(true); else { setEditingLink(contextMenu.link!); setIsModalOpen(true); }}} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors text-left">
                  <Edit2 size={16} className="text-slate-400"/> <span>编辑链接</span>
              </button>
              <button onClick={() => { togglePin(contextMenu.link!.id); setContextMenu(null); }} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors text-left">
