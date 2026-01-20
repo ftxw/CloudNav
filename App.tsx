@@ -870,12 +870,12 @@ function App() {
             }}
             onMouseMove={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
-                const x = ((e.clientX - rect.left) / rect.width) * 100;
-                const y = ((e.clientY - rect.top) / rect.height) * 100;
+                const x = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+                const y = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
                 const bg = e.currentTarget.querySelector('.icon-bg') as HTMLElement;
                 if (bg) {
-                    bg.style.setProperty('--pointer-x', `${x}%`);
-                    bg.style.setProperty('--pointer-y', `${y}%`);
+                    bg.style.setProperty('--pointer-x', x.toString());
+                    bg.style.setProperty('--pointer-y', y.toString());
                 }
             }}
             className={`group relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700/50 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 overflow-hidden`}
@@ -884,7 +884,7 @@ function App() {
             {/* Blurred icon background on hover */}
             {link.icon && (
                 <div
-                    className="icon-bg absolute inset-0 flex items-center justify-center opacity-[0.045] group-hover:opacity-[0.15] pointer-events-none transition-opacity duration-[300ms] group-hover:duration-[300ms]"
+                    className="icon-bg absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-[0.045] pointer-events-none group-hover:transition-opacity group-hover:duration-[300ms]"
                     style={{
                         '--pointer-x': -10,
                         '--pointer-y': -10,
