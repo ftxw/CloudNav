@@ -228,7 +228,7 @@ const ImportModal: React.FC<ImportModalProps> = ({
                             <label className="text-sm font-medium dark:text-slate-300">导入方式</label>
                             
                             <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${importMode === 'original' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-700'}`}>
-                                <input type="radio" name="mode" className="mt-1" checked={importMode === 'original'} onChange={() => setImportMode('original')} />
+                                <input type="radio" id="import-mode-original" name="mode" className="mt-1" checked={importMode === 'original'} onChange={() => setImportMode('original')} />
                                 <div>
                                     <div className="flex items-center gap-2 font-medium text-sm dark:text-white">
                                         <ListTree size={16} /> 保持原目录结构
@@ -238,7 +238,7 @@ const ImportModal: React.FC<ImportModalProps> = ({
                             </label>
 
                             <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${importMode === 'merge' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-700'}`}>
-                                <input type="radio" name="mode" className="mt-1" checked={importMode === 'merge'} onChange={() => setImportMode('merge')} />
+                                <input type="radio" id="import-mode-merge" name="mode" className="mt-1" checked={importMode === 'merge'} onChange={() => setImportMode('merge')} />
                                 <div className="w-full">
                                     <div className="flex items-center gap-2 font-medium text-sm dark:text-white">
                                         <FolderInput size={16} /> 全部导入到指定目录

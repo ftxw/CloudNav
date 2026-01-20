@@ -400,7 +400,7 @@ async function saveLink(title, url, categoryId, icon = '') {
     if (!icon) {
         try {
             const u = new URL(url);
-            icon = \`https://favicon.org.cn/get.php?url=\${encodeURIComponent(u.origin)}&size=128&key=usr-09b4268ccbf0b297611dc1a02fde7f739eec7ac3\`;
+            icon = \`\${u.origin}/favicon.ico\`;
         } catch(e){}
     }
 

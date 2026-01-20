@@ -82,9 +82,9 @@ const SearchSettingsModal: React.FC<SearchSettingsModalProps> = ({
         const urlObj = new URL(normalizedUrl);
         const origin = urlObj.origin;
 
-        // 使用 favicon.org.cn 服务获取图标
-        const newIconUrl = `https://favicon.org.cn/get.php?url=${encodeURIComponent(origin)}&size=128&key=usr-09b4268ccbf0b297611dc1a02fde7f739eec7ac3`;
-        
+        // 使用 Google 的 favicon 服务
+        const newIconUrl = `${origin}/favicon.ico`;
+
         setNewIcon(newIconUrl);
       } catch (e) {
           // invalid url
