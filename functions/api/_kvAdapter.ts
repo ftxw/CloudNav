@@ -49,15 +49,7 @@ class EdgeOneKVAdapter implements KVAdapter {
   private mode: 'binding' | 'http' | 'fallback';
 
   constructor(env: any) {
-    // 方式 1: EdgeOne 提供类似 Cloudflare 的 KV 绑定
-    if (env.EDGEONE_KV && typeof env.EDGEONE_KV.get === 'function') {
-      this.kv = env.EDGEONE_KV;
-      this.mode = 'binding';
-      console.log('EdgeOne KV: Using binding mode');
-      return;
-    }
-
-    // 方式 2: 通过 HTTP API 访问
+    // 方式 1: 通过 HTTP API 访问（优先级最高）
     const apiUrl = env.EDGEONE_KV_API || process.env.EDGEONE_KV_API;
     const authToken = env.EDGEONE_KV_TOKEN || process.env.EDGEONE_KV_TOKEN;
 
@@ -69,11 +61,19 @@ class EdgeOneKVAdapter implements KVAdapter {
       return;
     }
 
-    // 方式 3: 尝试使用 CLOUDNAV_KV 作为回退（EdgeOne 可能也使用这个名字）
+    // 方式 2: 使用 CLOUDNAV_KV 绑定（EdgeOne Pages 上也使用这个名字）
     if (env.CLOUDNAV_KV && typeof env.CLOUDNAV_KV.get === 'function') {
       this.kv = env.CLOUDNAV_KV;
-      this.mode = 'fallback';
-      console.log('EdgeOne KV: Using CLOUDNAV_KV as fallback');
+      this.mode = 'binding';
+      console.log('EdgeOne KV: Using CLOUDNAV_KV binding mode');
+      return;
+    }
+
+    // 方式 3: EdgeOne 提供的专用 KV 绑定
+    if (env.EDGEONE_KV && typeof env.EDGEONE_KV.get === 'function') {
+      this.kv = env.EDGEONE_KV;
+      this.mode = 'binding';
+      console.log('EdgeOne KV: Using EDGEONE_KV binding mode');
       return;
     }
 
@@ -83,9 +83,28 @@ class EdgeOneKVAdapter implements KVAdapter {
 
   async get(key: string): Promise<string | null> {
     try {
-      // 方式 1: 使用 KV 绑定
+      // 方式 1: 使用 KV 绑定（尝试多种调用方式）
       if (this.mode === 'binding' && this.kv) {
-        return await this.kv.get(key);
+        // 尝试 Cloudflare 风格的调用
+        try {
+          const result = await this.kv.get(key);
+          if (result !== undefined && result !== null) {
+            return result;
+          }
+        } catch (e) {
+          console.log('Cloudflare-style get failed, trying EdgeOne style:', e);
+        }
+
+        // 尝试 EdgeOne 风格的调用（可能需要不同的方法或参数）
+        try {
+          if (typeof this.kv.getItem === 'function') {
+            return await this.kv.getItem(key);
+          }
+        } catch (e) {
+          console.log('EdgeOne getItem failed:', e);
+        }
+
+        return null;
       }
 
       // 方式 2: 使用 HTTP API
@@ -99,7 +118,7 @@ class EdgeOneKVAdapter implements KVAdapter {
 
         if (response.ok) {
           const data = await response.json();
-          return data.value || null;
+          return data.value || data.data || null;
         } else if (response.status === 404) {
           return null;
         } else {
@@ -122,10 +141,27 @@ class EdgeOneKVAdapter implements KVAdapter {
 
   async put(key: string, value: string): Promise<void> {
     try {
-      // 方式 1: 使用 KV 绑定
+      // 方式 1: 使用 KV 绑定（尝试多种调用方式）
       if (this.mode === 'binding' && this.kv) {
-        await this.kv.put(key, value);
-        return;
+        // 尝试 Cloudflare 风格的调用
+        try {
+          await this.kv.put(key, value);
+          return;
+        } catch (e) {
+          console.log('Cloudflare-style put failed, trying EdgeOne style:', e);
+        }
+
+        // 尝试 EdgeOne 风格的调用
+        try {
+          if (typeof this.kv.setItem === 'function') {
+            await this.kv.setItem(key, value);
+            return;
+          }
+        } catch (e) {
+          console.log('EdgeOne setItem failed:', e);
+        }
+
+        throw new Error('KV put operation failed with all available methods');
       }
 
       // 方式 2: 使用 HTTP API
@@ -191,15 +227,17 @@ class EdgeOneKVAdapter implements KVAdapter {
  * 自动检测运行环境并返回合适的适配器
  */
 export function createKVAdapter(env: any): KVAdapter {
-  // 检测是否为 Cloudflare 环境（优先检测）
-  if (env.CLOUDNAV_KV && typeof env.CLOUDNAV_KV.get === 'function') {
-    console.log('✓ Using Cloudflare KV adapter');
-    return new CloudflareKVAdapter(env.CLOUDNAV_KV);
-  }
-
-  // 检测是否为 EdgeOne 环境
+  // 优先检测 EdgeOne 环境（通过环境变量或 API 配置）
   if (env.EDGEONE_KV || env.EDGEONE_KV_API || env.EDGEONE_KV_TOKEN) {
     console.log('✓ Using EdgeOne KV adapter');
+    return new EdgeOneKVAdapter(env);
+  }
+
+  // 检测是否有 CLOUDNAV_KV 绑定（Cloudflare 或 EdgeOne）
+  if (env.CLOUDNAV_KV && typeof env.CLOUDNAV_KV.get === 'function') {
+    // 尝试检测是否为 EdgeOne KV（EdgeOne KV 的 API 可能有所不同）
+    // 使用 EdgeOne 适配器，因为它更灵活
+    console.log('✓ Using EdgeOne KV adapter (via CLOUDNAV_KV binding)');
     return new EdgeOneKVAdapter(env);
   }
 
@@ -212,6 +250,6 @@ export function createKVAdapter(env: any): KVAdapter {
   throw new Error(
     '❌ No KV storage found. Please configure KV binding:\n' +
     '- Cloudflare: Bind CLOUDNAV_KV in Pages Settings\n' +
-    '- EdgeOne: Bind EDGEONE_KV or set EDGEONE_KV_API environment variables'
+    '- EdgeOne: Bind CLOUDNAV_KV or EDGEONE_KV in Pages Settings'
   );
 }
