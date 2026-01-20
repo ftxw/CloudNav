@@ -716,6 +716,7 @@ function App() {
       const style = {
           transform: CSS.Transform.toString(transform),
           transition: isDragging ? 'none' : transition,
+          scale: isDragging ? 1.05 : 1,
       };
 
       const isLocked = cat.password && !unlockedCategoryIds.has(cat.id);
@@ -766,6 +767,7 @@ function App() {
       const style = {
           transform: CSS.Transform.toString(transform),
           transition: isDragging ? 'none' : transition,
+          scale: isDragging ? 1.05 : 1,
       };
 
       const iconDisplay = link.icon ? (
@@ -786,7 +788,7 @@ function App() {
         <div
             ref={setNodeRef}
             style={style}
-            className={`group relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700/50 shadow-sm hover:shadow-lg hover:border-blue-200 dark:hover:border-slate-600 hover:-translate-y-0.5 transition-all duration-200 hover:bg-blue-50 dark:hover:bg-slate-750 ${isSorting ? 'cursor-move border border-dashed border-blue-400 dark:border-blue-500' : 'cursor-pointer'} ${isDragging ? 'opacity-0' : ''}`}
+            className={`group relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-white dark:bg-slate-800 rounded-xl border-2 border-slate-100 dark:border-slate-700/50 shadow-sm hover:shadow-lg hover:border-blue-200 dark:hover:border-slate-600 hover:-translate-y-0.5 transition-all duration-300 ease-in-out hover:bg-blue-50 dark:hover:bg-slate-750 ${isSorting ? 'cursor-move border-2 border-dashed border-blue-400 dark:border-blue-500' : 'cursor-pointer'} ${isDragging ? 'opacity-0 scale-105 shadow-2xl' : ''}`}
             title={link.description || link.url}
             {...attributes}
             {...listeners}
@@ -1482,14 +1484,16 @@ function App() {
 
                 return (
                     <section key={cat.id} id={`cat-${cat.id}`} className="scroll-mt-24">
-                        <div className="flex items-center gap-2 mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
-                             <div className="text-slate-400">
-                                {cat.icon && cat.icon.length <= 4 && !/^[a-zA-Z]+$/.test(cat.icon) ? <span className="text-lg">{cat.icon}</span> : <Icon name={cat.icon} size={20} />}
+                        <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+                             <div className="flex items-center gap-2">
+                                <div className="text-slate-400">
+                                    {cat.icon && cat.icon.length <= 4 && !/^[a-zA-Z]+$/.test(cat.icon) ? <span className="text-lg">{cat.icon}</span> : <Icon name={cat.icon} size={20} />}
+                                </div>
+                                <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200">
+                                    {cat.name}
+                                </h2>
+                                {isLocked && <Lock size={16} className="text-amber-500" />}
                              </div>
-                             <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200">
-                                 {cat.name}
-                             </h2>
-                             {isLocked && <Lock size={16} className="text-amber-500" />}
                              {isSortingLinks === cat.id && (
                                  <button
                                     onClick={handleSaveLinkSort}
