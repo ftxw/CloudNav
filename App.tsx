@@ -884,16 +884,16 @@ function App() {
             {/* Blurred icon background on hover */}
             {link.icon && (
                 <div
-                    className="icon-bg absolute inset-0 opacity-0 group-hover:opacity-10 pointer-events-none group-hover:transition-opacity group-hover:duration-300"
+                    className="icon-bg absolute inset-0 opacity-0 group-hover:opacity-12 pointer-events-none group-hover:transition-opacity group-hover:duration-300"
                     style={{
                         '--pointer-x': '50%',
                         '--pointer-y': '50%',
                         backgroundImage: `url(${link.icon})`,
-                        backgroundSize: '300%',
+                        backgroundSize: '400%',
                         backgroundPosition: 'center center',
                         transform: 'translateZ(0)',
                         translate: 'calc((var(--pointer-x, 50%) - 50%) * 1) calc((var(--pointer-y, 50%) - 50%) * 1)',
-                        filter: 'blur(20px) saturate(3) brightness(1.2) contrast(1.3)',
+                        filter: 'blur(30px) saturate(3) brightness(1.2) contrast(1.3)',
                     } as React.CSSProperties}
                 />
             )}
