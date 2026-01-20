@@ -868,23 +868,36 @@ function App() {
                 setContextMenu({ x, y, link });
                 return false;
             }}
+            onMouseMove={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const x = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+                const y = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+                const bg = e.currentTarget.querySelector('.icon-bg') as HTMLElement;
+                if (bg) {
+                    bg.style.setProperty('--pointer-x', x.toString());
+                    bg.style.setProperty('--pointer-y', y.toString());
+                }
+            }}
             className={`group relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700/50 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 overflow-hidden`}
             title={link.description || link.url}
         >
             {/* Blurred icon background on hover */}
             {link.icon && (
                 <div
-                    className="absolute inset-0 opacity-0 group-hover:opacity-15 transition-opacity duration-300 pointer-events-none"
+                    className="icon-bg absolute inset-0 opacity-0 group-hover:opacity-10 pointer-events-none group-hover:transition-opacity group-hover:duration-300"
                     style={{
+                        '--pointer-x': -10,
+                        '--pointer-y': -10,
                         backgroundImage: `url(${link.icon})`,
                         backgroundSize: '200%',
-                        backgroundPosition: 'center center',
+                        transform: 'translateZ(0)',
+                        translate: 'calc(var(--pointer-x, -10) * 40%) calc(var(--pointer-y, -10) * 40%)',
                         filter: 'blur(20px) saturate(3) brightness(1.2) contrast(1.3)',
-                    }}
+                    } as React.CSSProperties}
                 />
             )}
             <div className="relative z-10">
-                <div className={`flex items-center gap-3 ${isSimple ? '' : 'mb-1.5'} pr-8`}>
+                <div className={`flex items-center gap-3 ${!isSimple && link.description ? 'mb-1.5' : ''} pr-8`}>
                     <div className={`${isSimple ? 'w-6 h-6 text-xs' : 'w-8 h-8 text-sm'} rounded-lg bg-slate-50/80 dark:bg-slate-700/80 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold uppercase shrink-0 overflow-hidden backdrop-blur-sm`}>
                         {iconDisplay}
                     </div>
@@ -892,9 +905,9 @@ function App() {
                         {link.title}
                     </h3>
                 </div>
-                {!isSimple && (
+                {!isSimple && link.description && (
                     <div className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 h-4 w-full overflow-hidden">
-                        {link.description || <span className="opacity-0">.</span>}
+                        {link.description}
                     </div>
                 )}
             </div>
