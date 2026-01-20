@@ -889,10 +889,10 @@ function App() {
                         '--pointer-x': '50%',
                         '--pointer-y': '50%',
                         backgroundImage: `url(${link.icon})`,
-                        backgroundSize: 'cover',
+                        backgroundSize: '300%',
                         backgroundPosition: 'center center',
                         transform: 'translateZ(0)',
-                        translate: 'calc((var(--pointer-x, 50%) - 50%) * -2) calc((var(--pointer-y, 50%) - 50%) * -2)',
+                        translate: 'calc((var(--pointer-x, 50%) - 50%) * 1) calc((var(--pointer-y, 50%) - 50%) * 1)',
                         filter: 'blur(20px) saturate(3) brightness(1.2) contrast(1.3)',
                     } as React.CSSProperties}
                 />
