@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { X, Save, Bot, Key, Globe, Sparkles, PauseCircle, Wrench, Box, Copy, Check, List, GripVertical, Filter, LayoutTemplate, RefreshCw, Info, Download, Sidebar, Keyboard, MousePointerClick, AlertTriangle, Package, Zap, Menu } from 'lucide-react';
+import { X, Save, Bot, Key, Globe, Sparkles, PauseCircle, Wrench, Box, Copy, Check, LayoutTemplate, RefreshCw, Info, Download, Sidebar, Keyboard, MousePointerClick, AlertTriangle, Package, Zap, Menu } from 'lucide-react';
 import { AIConfig, LinkItem, Category, SiteSettings } from '../types';
 import { generateLinkDescription } from '../services/geminiService';
 import JSZip from 'jszip';
@@ -51,10 +51,10 @@ const generateSvgIcon = (text: string, color1: string, color2: string) => {
     }
 };
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ 
-    isOpen, onClose, config, siteSettings, onSave, links, categories, onUpdateLinks 
+const SettingsModal: React.FC<SettingsModalProps> = ({
+    isOpen, onClose, config, siteSettings, onSave, links, categories, onUpdateLinks
 }) => {
-  const [activeTab, setActiveTab] = useState<'site' | 'ai' | 'tools' | 'links'>('site');
+  const [activeTab, setActiveTab] = useState<'site' | 'ai' | 'tools'>('site');
   const [localConfig, setLocalConfig] = useState<AIConfig>(config);
   
   const [localSiteSettings, setLocalSiteSettings] = useState<SiteSettings>(() => ({
@@ -75,15 +75,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [domain, setDomain] = useState('');
   const [browserType, setBrowserType] = useState<'chrome' | 'firefox'>('chrome');
   const [isZipping, setIsZipping] = useState(false);
-  
-  // Link Management State
-  const [draggedId, setDraggedId] = useState<string | null>(null);
-  const [filterCategory, setFilterCategory] = useState<string>('all');
-  
-  const availableCategories = useMemo(() => {
-      const catIds = Array.from(new Set(links.map(l => l.categoryId)));
-      return catIds;
-  }, [links]);
 
   const [copiedStates, setCopiedStates] = useState<{[key: string]: boolean}>({});
 
@@ -119,8 +110,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       setDomain(window.location.origin);
       const storedToken = localStorage.getItem('cloudnav_auth_token');
       if (storedToken) setPassword(storedToken);
-      setDraggedId(null);
-      setFilterCategory('all');
     }
   }, [isOpen, config, siteSettings]);
 
@@ -196,37 +185,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
   };
-
-  const handleDragStart = (e: React.DragEvent, id: string) => {
-      setDraggedId(id);
-      e.dataTransfer.effectAllowed = "move";
-  };
-
-  const handleDragOver = (e: React.DragEvent, targetId: string) => {
-      e.preventDefault(); 
-      if (!draggedId || draggedId === targetId) return;
-      
-      const newLinks = [...links];
-      const sourceIndex = newLinks.findIndex(l => l.id === draggedId);
-      const targetIndex = newLinks.findIndex(l => l.id === targetId);
-
-      if (sourceIndex === -1 || targetIndex === -1) return;
-
-      const [movedItem] = newLinks.splice(sourceIndex, 1);
-      newLinks.splice(targetIndex, 0, movedItem);
-      
-      onUpdateLinks(newLinks);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-      e.preventDefault();
-      setDraggedId(null);
-  };
-
-  const filteredLinks = useMemo(() => {
-      if (filterCategory === 'all') return links;
-      return links.filter(l => l.categoryId === filterCategory);
-  }, [links, filterCategory]);
 
   // Extension Generators v7.6
   const getManifestJson = () => {
@@ -1044,58 +1002,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                 )}
 
-                {/* 3. Link Manager */}
-                {activeTab === 'links' && (
-                    <div className="space-y-4 animate-in fade-in duration-300 flex flex-col h-full">
-                        <div className="flex items-center gap-2 mb-2">
-                            <Filter size={16} className="text-slate-400" />
-                            <select 
-                                value={filterCategory}
-                                onChange={(e) => setFilterCategory(e.target.value)}
-                                className="p-1.5 text-sm rounded border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                            >
-                                <option value="all">全部分类</option>
-                                {categories.map(c => (
-                                    <option key={c.id} value={c.id}>{c.name}</option>
-                                ))}
-                            </select>
-                            <span className="text-xs text-slate-400 ml-auto">拖拽调整顺序</span>
-                        </div>
-                        
-                        <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-                             {filteredLinks.length === 0 ? (
-                                 <div className="text-center py-10 text-slate-400 text-sm">暂无链接</div>
-                             ) : (
-                                 filteredLinks.map(link => (
-                                    <div 
-                                        key={link.id}
-                                        draggable
-                                        onDragStart={(e) => handleDragStart(e, link.id)}
-                                        onDragOver={(e) => handleDragOver(e, link.id)}
-                                        onDrop={handleDrop}
-                                        className={`flex items-center gap-3 p-3 bg-white dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600 ${draggedId === link.id ? 'opacity-50 border-blue-400 border-dashed' : 'hover:border-blue-300'}`}
-                                    >
-                                        <div className="cursor-move text-slate-400 hover:text-slate-600">
-                                            <GripVertical size={16} />
-                                        </div>
-                                        <div className="w-6 h-6 rounded bg-slate-100 dark:bg-slate-600 flex items-center justify-center text-xs overflow-hidden">
-                                            {link.icon ? <img src={link.icon} className="w-full h-full object-cover"/> : link.title.charAt(0)}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="text-sm font-medium dark:text-slate-200 truncate">{link.title}</div>
-                                            <div className="text-xs text-slate-400 truncate">{link.url}</div>
-                                        </div>
-                                        <div className="text-xs px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-600 text-slate-500">
-                                            {categories.find(c => c.id === link.categoryId)?.name}
-                                        </div>
-                                    </div>
-                                 ))
-                             )}
-                        </div>
-                    </div>
-                )}
-
-                {/* 4. Tools (Extension) - New 3-Step UI */}
+                {/* 3. Tools (Extension) - New 3-Step UI */}
                 {activeTab === 'tools' && (
                     <div className="space-y-8 animate-in fade-in duration-300">
                         

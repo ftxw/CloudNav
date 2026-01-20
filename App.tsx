@@ -886,7 +886,7 @@ function App() {
                 </div>
             )}
             <button
-                className="absolute bottom-2 right-2 p-1.5 rounded-lg bg-slate-50 dark:bg-slate-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-all duration-200"
+                className="absolute bottom-2 right-2 p-1.5 rounded-lg bg-slate-50 dark:bg-slate-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-all duration-200"
                 onMouseEnter={(e) => {
                     const rect = e.currentTarget.getBoundingClientRect();
                     setHoverQrCode({
