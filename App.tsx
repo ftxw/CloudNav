@@ -937,7 +937,6 @@ function App() {
              {authToken && (
                  <>
                     <div className="h-px bg-slate-100 dark:bg-slate-700 my-1 mx-2"/>
-                 <>
                     <button onClick={() => { setContextMenu(null); setDefaultCategoryId(contextMenu.link!.categoryId); setEditingLink(undefined); setIsModalOpen(true); }} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors text-left">
                         <Plus size={16} className="text-slate-400"/> <span>添加链接</span>
                     </button>
