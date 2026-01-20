@@ -884,18 +884,17 @@ function App() {
             {/* Blurred icon background on hover */}
             {link.icon && (
                 <div
-                    className="icon-bg absolute inset-0 opacity-0 group-hover:opacity-12 pointer-events-none group-hover:transition-opacity group-hover:duration-300"
+                    className="icon-bg absolute inset-0 flex items-center justify-center opacity-[0.045] group-hover:opacity-[0.15] pointer-events-none transition-opacity duration-[300ms] group-hover:duration-[300ms]"
                     style={{
-                        '--pointer-x': '50%',
-                        '--pointer-y': '50%',
-                        backgroundImage: `url(${link.icon})`,
-                        backgroundSize: '400%',
-                        backgroundPosition: 'center center',
+                        '--pointer-x': -10,
+                        '--pointer-y': -10,
+                        filter: 'blur(20px) saturate(3) brightness(1.2) contrast(1.3)',
                         transform: 'translateZ(0)',
-                        translate: 'calc((var(--pointer-x, 50%) - 50%) * 1) calc((var(--pointer-y, 50%) - 50%) * 1)',
-                        filter: 'blur(30px) saturate(3) brightness(1.2) contrast(1.3)',
+                        translate: 'calc(var(--pointer-x, -10) * 40%) calc(var(--pointer-y, -10) * 40%)',
                     } as React.CSSProperties}
-                />
+                >
+                    <img src={link.icon} alt="" className="w-20 h-20 object-contain opacity-80" style={{ transform: 'scale(2.8)' }} />
+                </div>
             )}
             <div className="relative z-10">
                 <div className={`flex items-center gap-3 ${!isSimple && link.description ? 'mb-1.5' : ''} pr-8`}>
@@ -1395,6 +1394,8 @@ function App() {
                     <input
                         ref={searchInputRef}
                         type="text"
+                        id="search-input"
+                        name="search"
                         placeholder={searchMode === 'local' ? "搜索书签..." : `在 ${activeExternalEngine?.name} 搜索...`}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
