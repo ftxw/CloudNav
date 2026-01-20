@@ -1167,13 +1167,13 @@ function App() {
               <div className="p-1"><Icon name="LayoutGrid" size={18} /></div>
               <span>全部链接</span>
             </button>
-            
-            <div className="flex items-center justify-between pt-4 pb-2 px-4">
+
+            <div className="flex items-center justify-between pt-4 pb-2 px-4 h-8">
                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">分类目录</span>
                {isSortingCategory === 'all' ? (
                    <button
                       onClick={handleSaveCategorySort}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-full text-xs font-medium transition-colors"
                    >
                       确认
                    </button>
