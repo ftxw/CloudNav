@@ -2,7 +2,6 @@
 
 interface Env {
   CLOUDNAV_KV?: any;
-  EDGEONE_KV?: any;
   PASSWORD: string;
 }
 
@@ -12,8 +11,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, x-auth-password',
   'Access-Control-Max-Age': '86400',
 };
-
-import { createKVAdapter } from './_kvAdapter';
 
 export const onRequestOptions = async () => {
   return new Response(null, {
@@ -44,9 +41,8 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
         return new Response(JSON.stringify({ error: 'Missing title or url' }), { status: 400, headers: corsHeaders });
     }
 
-    // 2. Fetch current data from KV using adapter
-    const kvAdapter = createKVAdapter(env);
-    const currentDataStr = await kvAdapter.get('app_data');
+    // 2. Fetch current data from KV
+    const currentDataStr = env.CLOUDNAV_KV ? await env.CLOUDNAV_KV.get('app_data') : null;
     let currentData = { links: [], categories: [] };
 
     if (currentDataStr) {
@@ -112,8 +108,10 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     // @ts-ignore
     currentData.links = [newLink, ...(currentData.links || [])];
 
-    // 6. Save back to KV using adapter
-    await kvAdapter.put('app_data', JSON.stringify(currentData));
+    // 6. Save back to KV
+    if (env.CLOUDNAV_KV) {
+        await env.CLOUDNAV_KV.put('app_data', JSON.stringify(currentData));
+    }
 
     return new Response(JSON.stringify({
         success: true,

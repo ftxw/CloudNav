@@ -1,6 +1,5 @@
 interface Env {
   CLOUDNAV_KV?: any;
-  EDGEONE_KV?: any;
   PASSWORD: string;
 }
 
@@ -10,8 +9,6 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, x-auth-password',
 };
-
-import { createKVAdapter } from './_kvAdapter';
 
 // 处理 OPTIONS 请求（解决跨域预检）
 export const onRequestOptions = async () => {
@@ -26,9 +23,8 @@ export const onRequestGet = async (context: { env: Env }) => {
   try {
     const { env } = context;
 
-    // 使用 KV 适配器获取数据
-    const kvAdapter = createKVAdapter(env);
-    const data = await kvAdapter.get('app_data');
+    // 直接使用 CLOUDNAV_KV（EdgeOne Pages 与 Cloudflare Pages KV API 兼容）
+    const data = env.CLOUDNAV_KV ? await env.CLOUDNAV_KV.get('app_data') : null;
 
     if (!data) {
       // 如果没有数据，返回空结构
@@ -75,9 +71,12 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
   try {
     const body = await request.json();
 
-    // 使用 KV 适配器保存数据
-    const kvAdapter = createKVAdapter(env);
-    await kvAdapter.put('app_data', JSON.stringify(body));
+    // 直接使用 CLOUDNAV_KV
+    if (env.CLOUDNAV_KV) {
+      await env.CLOUDNAV_KV.put('app_data', JSON.stringify(body));
+    } else {
+      throw new Error('KV storage not available');
+    }
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
