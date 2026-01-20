@@ -868,18 +868,18 @@ function App() {
                 setContextMenu({ x, y, link });
                 return false;
             }}
-            className={`group relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700/50 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 overflow-hidden`}
+            className={`group relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700/50 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 overflow-hidden`}
             title={link.description || link.url}
         >
             {/* Blurred icon background on hover */}
             {link.icon && (
                 <div
-                    className="absolute inset-0 opacity-0 group-hover:opacity-8 transition-opacity duration-300 pointer-events-none"
+                    className="absolute inset-0 opacity-0 group-hover:opacity-15 transition-opacity duration-300 pointer-events-none"
                     style={{
                         backgroundImage: `url(${link.icon})`,
                         backgroundSize: '200%',
                         backgroundPosition: 'center center',
-                        filter: 'blur(30px) brightness(1.2)',
+                        filter: 'blur(20px) saturate(3) brightness(1.2) contrast(1.3)',
                     }}
                 />
             )}
@@ -1385,7 +1385,7 @@ function App() {
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className={`w-full border border-transparent hover:border-slate-200 dark:hover:border-slate-600 rounded-full text-sm dark:text-white placeholder-slate-400 outline-none transition-all focus:bg-white dark:focus:bg-slate-700 focus:ring-2 focus:ring-blue-500/50 ${
-                            searchMode === 'external' ? 'pl-10 pr-16 py-2 bg-slate-100 dark:bg-slate-700/50 hover:bg-white dark:hover:bg-slate-700' : 'pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-700/50 hover:bg-white dark:hover:bg-slate-700'
+                            searchMode === 'external' ? 'pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-700/50 hover:bg-white dark:hover:bg-slate-700' : 'pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-700/50 hover:bg-white dark:hover:bg-slate-700'
                         }`}
                     />
                     {searchMode === 'local' && (
@@ -1395,22 +1395,24 @@ function App() {
                     )}
 
                         {/* Visual Indicator for Search */}
-                        {searchQuery ? (
+                        {searchQuery && (
                             <button type="submit" className="absolute right-2 p-1.5 bg-blue-100 dark:bg-blue-900/40 text-blue-600 rounded-full hover:bg-blue-200 transition-colors">
                                 <ArrowRight size={14} />
                             </button>
-                        ) : searchMode === 'external' ? (
-                            <button
-                                type="button"
-                                onClick={() => { if(!authToken) setIsAuthOpen(true); else setIsSearchSettingsOpen(true); }}
-                                className="absolute right-2 p-1.5 text-slate-400 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"
-                                title="管理搜索引擎"
-                            >
-                                <Settings size={14} />
-                            </button>
-                        ) : null}
+                        )}
                     </form>
                 </div>
+
+                {/* Settings Gear (Visible only for External, outside search box) */}
+                {searchMode === 'external' && (
+                    <button
+                        onClick={() => { if(!authToken) setIsAuthOpen(true); else setIsSearchSettingsOpen(true); }}
+                        className="p-2 text-slate-400 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors animate-in fade-in slide-in-from-left-2 duration-200"
+                        title="管理搜索引擎"
+                    >
+                        <Settings size={18} />
+                    </button>
+                )}
             </div>
           </div>
 
