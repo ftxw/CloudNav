@@ -868,22 +868,36 @@ function App() {
                 setContextMenu({ x, y, link });
                 return false;
             }}
-            className={`group relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700/50 shadow-sm hover:shadow-lg hover:border-blue-200 dark:hover:border-slate-600 hover:-translate-y-0.5 transition-all duration-200 hover:bg-blue-50 dark:hover:bg-slate-750`}
+            className={`group relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700/50 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 overflow-hidden`}
             title={link.description || link.url}
         >
-            <div className={`flex items-center gap-3 ${isSimple ? '' : 'mb-1.5'} pr-8`}>
-                <div className={`${isSimple ? 'w-6 h-6 text-xs' : 'w-8 h-8 text-sm'} rounded-lg bg-slate-50 dark:bg-slate-700 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold uppercase shrink-0 overflow-hidden`}>
-                    {iconDisplay}
-                </div>
-                <h3 className="font-medium text-sm text-slate-800 dark:text-slate-200 truncate flex-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                    {link.title}
-                </h3>
-            </div>
-            {!isSimple && (
-                <div className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 h-4 w-full overflow-hidden">
-                    {link.description || <span className="opacity-0">.</span>}
-                </div>
+            {/* Blurred icon background on hover */}
+            {link.icon && (
+                <div
+                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                    style={{
+                        backgroundImage: `url(${link.icon})`,
+                        backgroundSize: '200%',
+                        backgroundPosition: 'center',
+                        filter: 'blur(20px) brightness(1.2)',
+                    }}
+                />
             )}
+            <div className="relative z-10">
+                <div className={`flex items-center gap-3 ${isSimple ? '' : 'mb-1.5'} pr-8`}>
+                    <div className={`${isSimple ? 'w-6 h-6 text-xs' : 'w-8 h-8 text-sm'} rounded-lg bg-slate-50/80 dark:bg-slate-700/80 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold uppercase shrink-0 overflow-hidden backdrop-blur-sm`}>
+                        {iconDisplay}
+                    </div>
+                    <h3 className="font-medium text-sm text-slate-800 dark:text-slate-200 truncate flex-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                        {link.title}
+                    </h3>
+                </div>
+                {!isSimple && (
+                    <div className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 h-4 w-full overflow-hidden">
+                        {link.description || <span className="opacity-0">.</span>}
+                    </div>
+                )}
+            </div>
         </a>
       );
   };
