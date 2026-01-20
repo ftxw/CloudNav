@@ -1526,33 +1526,35 @@ function App() {
                                         </div>
                                     </SortableContext>
                                     <DragOverlay>
-                                      {activeId ? (
-                                        <div className="bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-300 dark:border-blue-600 p-3 shadow-2xl pointer-events-none">
-                                          {(() => {
-                                            const link = links.find(l => l.id === activeId);
-                                            if (!link) return null;
-                                            const iconDisplay = link.icon ? (
-                                               <img
-                                                  src={link.icon}
-                                                  alt=""
-                                                  className="w-5 h-5 object-contain"
-                                              />
-                                            ) : link.title.charAt(0);
-                                            return (
-                                              <>
-                                                <div className="flex items-center gap-3 mb-1.5">
-                                                    <div className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-700 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold uppercase shrink-0 overflow-hidden">
-                                                        {iconDisplay}
-                                                    </div>
-                                                    <h3 className="font-medium text-sm text-blue-600 dark:text-blue-400 truncate flex-1">
-                                                        {link.title}
-                                                    </h3>
+                                      {activeId ? (() => {
+                                        const link = links.find(l => l.id === activeId);
+                                        if (!link) return null;
+                                        const iconDisplay = link.icon ? (
+                                           <img
+                                              src={link.icon}
+                                              alt=""
+                                              className="w-5 h-5 object-contain"
+                                          />
+                                        ) : link.title.charAt(0);
+                                        const isSimple = siteSettings.cardStyle === 'simple';
+                                        return (
+                                          <div className={`group relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-300 dark:border-blue-600 shadow-2xl pointer-events-none`}>
+                                            <div className={`flex items-center gap-3 ${isSimple ? '' : 'mb-1.5'} pr-6`}>
+                                                <div className={`${isSimple ? 'w-6 h-6 text-xs' : 'w-8 h-8 text-sm'} rounded-lg bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold uppercase shrink-0 overflow-hidden`}>
+                                                    {iconDisplay}
                                                 </div>
-                                              </>
-                                            );
-                                          })()}
-                                        </div>
-                                      ) : null}
+                                                <h3 className="font-medium text-sm text-blue-600 dark:text-blue-400 truncate flex-1">
+                                                    {link.title}
+                                                </h3>
+                                            </div>
+                                            {!isSimple && (
+                                                <div className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 h-4 w-full overflow-hidden">
+                                                    {link.description || <span className="opacity-0">.</span>}
+                                                </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })()}
                                     </DragOverlay>
                                 </DndContext>
                             ) : (
