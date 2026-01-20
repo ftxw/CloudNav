@@ -1562,7 +1562,7 @@ function App() {
                                     catLinks.map(link => renderLinkCard(link))
                                 )}
                              </div>
-                            )}
+                            ))}
                     </section>
                 );
             })}
