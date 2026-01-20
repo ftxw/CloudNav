@@ -58,9 +58,9 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
   const serverPassword = env.PASSWORD;
 
   if (!serverPassword) {
-    return new Response(JSON.stringify({ error: 'Server misconfigured: PASSWORD not set' }),
-        status: 500,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    return new Response(JSON.stringify({ error: 'Server misconfigured: PASSWORD not set' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
   }
 
