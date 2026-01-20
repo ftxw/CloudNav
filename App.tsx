@@ -717,7 +717,6 @@ function App() {
       const style = {
           transform: CSS.Transform.toString(transform),
           transition: isDragging ? 'none' : transition,
-          scale: isDragging ? 1.05 : 1,
       };
 
       const isLocked = cat.password && !unlockedCategoryIds.has(cat.id);
@@ -788,7 +787,7 @@ function App() {
         <div
             ref={setNodeRef}
             style={style}
-            className={`group relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700/50 shadow-sm hover:shadow-lg hover:border-blue-200 dark:hover:border-slate-600 hover:-translate-y-0.5 transition-all duration-200 hover:bg-blue-50 dark:hover:bg-slate-750 ${isSorting ? 'cursor-move border border-blue-400 dark:border-blue-500' : 'cursor-pointer'} ${isDragging ? 'opacity-0' : ''}`}
+            className={`group relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700/50 shadow-sm hover:shadow-lg hover:border-blue-200 dark:hover:border-slate-600 hover:-translate-y-0.5 transition-all duration-200 hover:bg-blue-50 dark:hover:bg-slate-750 ${isSorting ? 'cursor-move border-dashed border-blue-400 dark:border-blue-500' : 'cursor-pointer'} ${isDragging ? 'opacity-0' : ''}`}
             title={link.description || link.url}
             {...attributes}
             {...listeners}
