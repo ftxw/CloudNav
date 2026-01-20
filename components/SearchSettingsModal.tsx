@@ -10,7 +10,6 @@ interface SearchSettingsModalProps {
   activeEngineId: string;
   onUpdateEngines: (engines: SearchEngine[]) => void;
   onSelectEngine: (id: string) => void;
-  authToken?: string;
 }
 
 const SearchSettingsModal: React.FC<SearchSettingsModalProps> = ({
@@ -19,8 +18,7 @@ const SearchSettingsModal: React.FC<SearchSettingsModalProps> = ({
   engines,
   activeEngineId,
   onUpdateEngines,
-  onSelectEngine,
-  authToken
+  onSelectEngine
 }) => {
   const [newName, setNewName] = useState('');
   const [newUrl, setNewUrl] = useState('');
@@ -30,10 +28,6 @@ const SearchSettingsModal: React.FC<SearchSettingsModalProps> = ({
   if (!isOpen) return null;
 
   const handleAdd = () => {
-    if (!authToken) {
-      alert('请先登录');
-      return;
-    }
     if (!newName || !newUrl) return;
 
     // 简单的 URL 校验
@@ -56,10 +50,6 @@ const SearchSettingsModal: React.FC<SearchSettingsModalProps> = ({
   };
 
   const handleDelete = (id: string) => {
-    if (!authToken) {
-      alert('请先登录');
-      return;
-    }
     if (confirm('确定删除此搜索引擎吗？')) {
         const updated = engines.filter(e => e.id !== id);
         onUpdateEngines(updated);

@@ -180,7 +180,6 @@ function App() {
 
   const handleAddCategory = () => {
       setCategoryContextMenu(null);
-      if (!authToken) { setIsAuthOpen(true); return; }
       setCategoryModalMode('add');
       setCategoryModalCategory(undefined);
       setCategoryModalOpen(true);
@@ -188,13 +187,11 @@ function App() {
 
   const handleSortCategory = () => {
       setCategoryContextMenu(null);
-      if (!authToken) { setIsAuthOpen(true); return; }
       setIsSortingCategory('all');
   };
 
   const handleRenameCategory = (cat: Category) => {
       setCategoryContextMenu(null);
-      if (!authToken) { setIsAuthOpen(true); return; }
       setCategoryModalMode('edit');
       setCategoryModalCategory(cat);
       setCategoryModalOpen(true);
@@ -202,7 +199,6 @@ function App() {
 
   const handleMergeCategory = (cat: Category) => {
       setCategoryContextMenu(null);
-      if (!authToken) { setIsAuthOpen(true); return; }
       setCategoryModalMode('merge');
       setCategoryModalCategory(cat);
       setCategoryModalOpen(true);
@@ -210,7 +206,6 @@ function App() {
 
   const handleDeleteCategory = (catId: string) => {
       setCategoryContextMenu(null);
-      if (!authToken) { setIsAuthOpen(true); return; }
 
       const cat = categories.find(c => c.id === catId);
       if (!cat) return;
@@ -592,7 +587,6 @@ function App() {
   };
 
   const handleAddLink = (data: Omit<LinkItem, 'id' | 'createdAt'>) => {
-    if (!authToken) { setIsAuthOpen(true); return; }
     const newLink: LinkItem = {
       ...data,
       id: Date.now().toString(),
@@ -603,7 +597,6 @@ function App() {
   };
 
   const handleEditLink = (data: Omit<LinkItem, 'id' | 'createdAt'>) => {
-    if (!authToken) { setIsAuthOpen(true); return; }
     if (!editingLink) return;
     const updated = links.map(l => l.id === editingLink.id ? { ...l, ...data } : l);
     updateData(updated, categories);
@@ -611,7 +604,6 @@ function App() {
   };
 
   const handleDeleteLink = (id: string) => {
-    if (!authToken) { setIsAuthOpen(true); return; }
     const link = links.find(l => l.id === id);
     if (link) {
       setDeleteLinkConfirm(link);
@@ -625,7 +617,6 @@ function App() {
   };
 
   const togglePin = (id: string) => {
-      if (!authToken) { setIsAuthOpen(true); return; }
       const updated = links.map(l => l.id === id ? { ...l, pinned: !l.pinned } : l);
       updateData(updated, categories);
   };
@@ -730,11 +721,11 @@ function App() {
                   activeCategory === cat.id
                       ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-medium'
                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-              } ${isSorting ? 'cursor-move border border-dashed border-blue-400 dark:border-blue-500' : 'cursor-pointer'} ${isDragging ? 'opacity-0' : ''}`}
+              } ${isSorting ? 'cursor-move border-2 border-dashed border-blue-400 dark:border-blue-500' : 'border-2 border-transparent cursor-pointer'} ${isDragging ? 'opacity-0' : ''}`}
               onContextMenu={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  if (isSorting || categoryModalOpen || !authToken) return;
+                  if (isSorting || categoryModalOpen) return;
                   let x = e.clientX;
                   let y = e.clientY;
                   if (x + 200 > window.innerWidth) x = window.innerWidth - 210;
@@ -934,27 +925,23 @@ function App() {
              <button onClick={() => { setQrCodeLink(contextMenu.link!); setContextMenu(null); }} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors text-left">
                  <QrCode size={16} className="text-slate-400"/> <span>二维码</span>
              </button>
-             {authToken && (
-                 <>
-                    <div className="h-px bg-slate-100 dark:bg-slate-700 my-1 mx-2"/>
-                    <button onClick={() => { setContextMenu(null); setDefaultCategoryId(contextMenu.link!.categoryId); setEditingLink(undefined); setIsModalOpen(true); }} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors text-left">
-                        <Plus size={16} className="text-slate-400"/> <span>添加链接</span>
-                    </button>
-                    <button onClick={() => { setContextMenu(null); setIsSortingLinks(contextMenu.link!.categoryId); }} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors text-left">
-                        <Move size={16} className="text-slate-400"/> <span>排序</span>
-                    </button>
-                    <button onClick={() => { setContextMenu(null); setEditingLink(contextMenu.link!); setIsModalOpen(true); }} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors text-left">
-                        <Edit2 size={16} className="text-slate-400"/> <span>编辑链接</span>
-                    </button>
-                    <button onClick={() => { togglePin(contextMenu.link!.id); setContextMenu(null); }} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors text-left">
-                        <Pin size={16} className={contextMenu.link!.pinned ? "fill-current text-blue-500" : "text-slate-400"}/> <span>{contextMenu.link!.pinned ? '取消置顶' : '置顶'}</span>
-                    </button>
-                    <div className="h-px bg-slate-100 dark:bg-slate-700 my-1 mx-2"/>
-                    <button onClick={() => { handleDeleteLink(contextMenu.link!.id); setContextMenu(null); }} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 transition-colors text-left">
-                        <Trash2 size={16}/> <span>删除链接</span>
-                    </button>
-                 </>
-             )}
+             <div className="h-px bg-slate-100 dark:bg-slate-700 my-1 mx-2"/>
+             <button onClick={() => { setContextMenu(null); setDefaultCategoryId(contextMenu.link!.categoryId); setEditingLink(undefined); setIsModalOpen(true); }} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors text-left">
+                 <Plus size={16} className="text-slate-400"/> <span>添加链接</span>
+             </button>
+             <button onClick={() => { setContextMenu(null); setIsSortingLinks(contextMenu.link!.categoryId); }} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors text-left">
+                 <Move size={16} className="text-slate-400"/> <span>排序</span>
+             </button>
+             <button onClick={() => { setContextMenu(null); setEditingLink(contextMenu.link!); setIsModalOpen(true); }} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors text-left">
+                 <Edit2 size={16} className="text-slate-400"/> <span>编辑链接</span>
+             </button>
+             <button onClick={() => { togglePin(contextMenu.link!.id); setContextMenu(null); }} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors text-left">
+                 <Pin size={16} className={contextMenu.link!.pinned ? "fill-current text-blue-500" : "text-slate-400"}/> <span>{contextMenu.link!.pinned ? '取消置顶' : '置顶'}</span>
+             </button>
+             <div className="h-px bg-slate-100 dark:bg-slate-700 my-1 mx-2"/>
+             <button onClick={() => { handleDeleteLink(contextMenu.link!.id); setContextMenu(null); }} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 transition-colors text-left">
+                 <Trash2 size={16}/> <span>删除链接</span>
+             </button>
           </div>
       )}
 
@@ -1112,7 +1099,6 @@ function App() {
         activeEngineId={activeEngineId}
         onUpdateEngines={handleUpdateSearchEngines}
         onSelectEngine={setActiveEngineId}
-        authToken={authToken}
       />
 
       <CategoryModal
@@ -1168,7 +1154,7 @@ function App() {
               <span>全部链接</span>
             </button>
 
-            <div className="flex items-center justify-between pt-4 pb-2 px-4 h-8">
+            <div className="flex items-end justify-between pt-4 pb-2 px-4 h-8">
                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">分类目录</span>
                {isSortingCategory === 'all' ? (
                    <button
@@ -1211,34 +1197,32 @@ function App() {
         </div>
 
         <div className="p-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 shrink-0">
-            {authToken && (
-                <div className="grid grid-cols-3 gap-2 mb-2">
-                    <button
-                        onClick={() => setIsImportModalOpen(true)}
-                        className="flex flex-col items-center justify-center gap-1 p-2 text-xs text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 transition-all"
-                        title="导入书签"
-                    >
-                        <Upload size={14} />
-                        <span>导入</span>
-                    </button>
-                    <button
-                        onClick={() => setIsBackupModalOpen(true)}
-                        className="flex flex-col items-center justify-center gap-1 p-2 text-xs text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 transition-all"
-                        title="备份与恢复"
-                    >
-                        <CloudCog size={14} />
-                        <span>备份</span>
-                    </button>
-                    <button
-                        onClick={() => setIsSettingsModalOpen(true)}
-                        className="flex flex-col items-center justify-center gap-1 p-2 text-xs text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 transition-all"
-                        title="AI 设置"
-                    >
-                        <Settings size={14} />
-                        <span>设置</span>
-                    </button>
-                </div>
-            )}
+            <div className="grid grid-cols-3 gap-2 mb-2">
+                <button
+                    onClick={() => setIsImportModalOpen(true)}
+                    className="flex flex-col items-center justify-center gap-1 p-2 text-xs text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 transition-all"
+                    title="导入书签"
+                >
+                    <Upload size={14} />
+                    <span>导入</span>
+                </button>
+                <button
+                    onClick={() => setIsBackupModalOpen(true)}
+                    className="flex flex-col items-center justify-center gap-1 p-2 text-xs text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 transition-all"
+                    title="备份与恢复"
+                >
+                    <CloudCog size={14} />
+                    <span>备份</span>
+                </button>
+                <button
+                    onClick={() => setIsSettingsModalOpen(true)}
+                    className="flex flex-col items-center justify-center gap-1 p-2 text-xs text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 transition-all"
+                    title="AI 设置"
+                >
+                    <Settings size={14} />
+                    <span>设置</span>
+                </button>
+            </div>
             
             <div className="flex items-center justify-between text-xs px-2 mt-2">
                <div className="flex items-center gap-1 text-slate-400">
@@ -1421,7 +1405,7 @@ function App() {
                 </div>
 
                 {/* Settings Gear (Visible only for External, outside search box) */}
-                {searchMode === 'external' && authToken && (
+                {searchMode === 'external' && (
                     <button
                         onClick={() => setIsSearchSettingsOpen(true)}
                         className="p-2 text-slate-400 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors animate-in fade-in slide-in-from-left-2 duration-200"
