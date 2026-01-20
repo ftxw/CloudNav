@@ -33,7 +33,24 @@ export async function onRequest(context: { request: Request; env: Env }) {
       };
 
       // 直接使用 CLOUDNAV_KV（EdgeOne Pages 与 Cloudflare Pages KV API 兼容）
-      const data = env.CLOUDNAV_KV ? await env.CLOUDNAV_KV.get('app_data') : null;
+      // EdgeOne KV 支持 get(key, "json") 直接返回 JSON 对象
+      let data = null;
+      if (env.CLOUDNAV_KV) {
+        try {
+          // 尝试 EdgeOne 方式
+          data = await env.CLOUDNAV_KV.get('app_data', 'json');
+        } catch (e) {
+          // 回退到 Cloudflare 方式
+          data = await env.CLOUDNAV_KV.get('app_data');
+          if (data && typeof data === 'string') {
+            try {
+              data = JSON.parse(data);
+            } catch (parseErr) {
+              // 解析失败，保持原样
+            }
+          }
+        }
+      }
 
       if (!data) {
         // 如果没有数据，返回空结构
@@ -42,7 +59,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
         });
       }
 
-      return new Response(data, {
+      return new Response(JSON.stringify(data), {
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     } catch (err) {
@@ -98,6 +115,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
         throw new Error('KV storage not available. Please bind CLOUDNAV_KV in EdgeOne Pages settings.');
       }
 
+      // EdgeOne KV put 方法支持直接传入 JSON 对象
       await env.CLOUDNAV_KV.put('app_data', JSON.stringify(body));
 
       return new Response(JSON.stringify({ success: true, _debug: debugInfo }), {

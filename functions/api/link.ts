@@ -42,11 +42,22 @@ export async function onRequest(context: { request: Request; env: Env }) {
       }
 
       // 2. Fetch current data from KV
-      const currentDataStr = env.CLOUDNAV_KV ? await env.CLOUDNAV_KV.get('app_data') : null;
       let currentData = { links: [], categories: [] };
 
-      if (currentDataStr) {
-          currentData = JSON.parse(currentDataStr);
+      if (env.CLOUDNAV_KV) {
+        try {
+          // 尝试 EdgeOne 方式：直接获取 JSON
+          currentData = await env.CLOUDNAV_KV.get('app_data', 'json');
+          if (!currentData) {
+            currentData = { links: [], categories: [] };
+          }
+        } catch (e) {
+          // 回退到 Cloudflare 方式
+          const currentDataStr = await env.CLOUDNAV_KV.get('app_data');
+          if (currentDataStr) {
+            currentData = JSON.parse(currentDataStr);
+          }
+        }
       }
 
       // 3. Determine Category
