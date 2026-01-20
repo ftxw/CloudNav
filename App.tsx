@@ -870,12 +870,12 @@ function App() {
             }}
             onMouseMove={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
-                const x = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
-                const y = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+                const x = ((e.clientX - rect.left) / rect.width) * 100;
+                const y = ((e.clientY - rect.top) / rect.height) * 100;
                 const bg = e.currentTarget.querySelector('.icon-bg') as HTMLElement;
                 if (bg) {
-                    bg.style.setProperty('--pointer-x', x.toString());
-                    bg.style.setProperty('--pointer-y', y.toString());
+                    bg.style.setProperty('--pointer-x', `${x}%`);
+                    bg.style.setProperty('--pointer-y', `${y}%`);
                 }
             }}
             className={`group relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700/50 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 overflow-hidden`}
@@ -886,12 +886,13 @@ function App() {
                 <div
                     className="icon-bg absolute inset-0 opacity-0 group-hover:opacity-10 pointer-events-none group-hover:transition-opacity group-hover:duration-300"
                     style={{
-                        '--pointer-x': -10,
-                        '--pointer-y': -10,
+                        '--pointer-x': '50%',
+                        '--pointer-y': '50%',
                         backgroundImage: `url(${link.icon})`,
-                        backgroundSize: '200%',
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center center',
                         transform: 'translateZ(0)',
-                        translate: 'calc(var(--pointer-x, -10) * 40%) calc(var(--pointer-y, -10) * 40%)',
+                        translate: 'calc((var(--pointer-x, 50%) - 50%) * -2) calc((var(--pointer-y, 50%) - 50%) * -2)',
                         filter: 'blur(20px) saturate(3) brightness(1.2) contrast(1.3)',
                     } as React.CSSProperties}
                 />
