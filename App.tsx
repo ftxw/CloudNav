@@ -787,7 +787,7 @@ function App() {
         <div
             ref={setNodeRef}
             style={style}
-            className={`group relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700/50 shadow-sm hover:shadow-lg hover:border-blue-200 dark:hover:border-slate-600 hover:-translate-y-0.5 transition-all duration-200 hover:bg-blue-50 dark:hover:bg-slate-750 ${isSorting ? 'cursor-move border-dashed border-blue-400 dark:border-blue-500' : 'cursor-pointer'} ${isDragging ? 'opacity-0' : ''}`}
+            className={`relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700/50 shadow-sm ${isSorting ? 'cursor-move border-dashed border-blue-400 dark:border-blue-500' : 'cursor-pointer'} ${isDragging ? 'opacity-0' : ''}`}
             title={link.description || link.url}
             {...attributes}
             {...listeners}
@@ -796,7 +796,7 @@ function App() {
                 <div className={`${isSimple ? 'w-6 h-6 text-xs' : 'w-8 h-8 text-sm'} rounded-lg bg-slate-50 dark:bg-slate-700 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold uppercase shrink-0 overflow-hidden`}>
                     {iconDisplay}
                 </div>
-                <h3 className="font-medium text-sm text-slate-800 dark:text-slate-200 truncate flex-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                <h3 className="font-medium text-sm text-slate-800 dark:text-slate-200 truncate flex-1">
                     {link.title}
                 </h3>
             </div>
@@ -874,12 +874,12 @@ function App() {
             {/* Blurred icon background on hover */}
             {link.icon && (
                 <div
-                    className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-300 pointer-events-none"
+                    className="absolute inset-0 opacity-0 group-hover:opacity-8 transition-opacity duration-300 pointer-events-none"
                     style={{
                         backgroundImage: `url(${link.icon})`,
                         backgroundSize: '200%',
                         backgroundPosition: 'center center',
-                        filter: 'blur(20px) brightness(1.2)',
+                        filter: 'blur(30px) brightness(1.2)',
                     }}
                 />
             )}
@@ -921,6 +921,7 @@ function App() {
              <button onClick={() => { setQrCodeLink(contextMenu.link!); setContextMenu(null); }} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors text-left">
                  <QrCode size={16} className="text-slate-400"/> <span>二维码</span>
              </button>
+             <div className="h-px bg-slate-100 dark:bg-slate-700 my-1 mx-2"/>
              {authToken && (
                  <>
                     <button onClick={() => { setContextMenu(null); setDefaultCategoryId(contextMenu.link!.categoryId); setEditingLink(undefined); setIsModalOpen(true); }} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors text-left">
@@ -1330,17 +1331,6 @@ function App() {
                     </button>
                 </div>
 
-                {/* Settings Gear (Visible only for External) */}
-                {searchMode === 'external' && (
-                    <button
-                        onClick={() => { if(!authToken) setIsAuthOpen(true); else setIsSearchSettingsOpen(true); }}
-                        className="p-2 text-slate-400 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors animate-in fade-in slide-in-from-left-2 duration-200"
-                        title="管理搜索引擎"
-                    >
-                        <Settings size={18} />
-                    </button>
-                )}
-
                 {/* Search Input */}
                 <div ref={searchEngineSelectorRef} className="flex-1 relative flex items-center group">
                     <form onSubmit={handleSearchSubmit} className="w-full relative flex items-center">
@@ -1405,11 +1395,20 @@ function App() {
                     )}
 
                         {/* Visual Indicator for Search */}
-                        {searchQuery && (
+                        {searchQuery ? (
                             <button type="submit" className="absolute right-2 p-1.5 bg-blue-100 dark:bg-blue-900/40 text-blue-600 rounded-full hover:bg-blue-200 transition-colors">
                                 <ArrowRight size={14} />
                             </button>
-                        )}
+                        ) : searchMode === 'external' ? (
+                            <button
+                                type="button"
+                                onClick={() => { if(!authToken) setIsAuthOpen(true); else setIsSearchSettingsOpen(true); }}
+                                className="absolute right-2 p-1.5 text-slate-400 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"
+                                title="管理搜索引擎"
+                            >
+                                <Settings size={14} />
+                            </button>
+                        ) : null}
                     </form>
                 </div>
             </div>

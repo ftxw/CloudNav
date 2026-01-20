@@ -190,7 +190,10 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
                          <img 
                             src={iconUrl} 
                             className="w-full h-full object-contain"
-                            onError={(e) => {e.currentTarget.style.display='none'}}
+                            onError={(e) => {
+                                e.currentTarget.style.display='none';
+                                setIconUrl('');
+                            }}
                          />
                     ) : (
                         <ImageIcon size={18} className="text-slate-400"/>
