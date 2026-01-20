@@ -913,9 +913,9 @@ function App() {
     <>
       {/* Copy Success Toast */}
       {copySuccess.show && (
-          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] bg-blue-600 text-white px-6 py-3 rounded-xl shadow-lg animate-in slide-in-from-top-4 duration-200 flex items-center gap-3">
+          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] bg-white text-blue-600 px-6 py-3 rounded-full shadow-lg animate-in slide-in-from-top-4 duration-200 flex items-center gap-3">
               <CheckCircle2 size={20} />
-              <span>您已成功复制【{copySuccess.title}】的网址链接</span>
+              <span>您已成功复制 {copySuccess.title} 的网址</span>
           </div>
       )}
 
