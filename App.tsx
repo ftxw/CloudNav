@@ -874,11 +874,11 @@ function App() {
             {/* Blurred icon background on hover */}
             {link.icon && (
                 <div
-                    className="absolute inset-0 opacity-0 group-hover:opacity-50 transition-opacity duration-300 pointer-events-none"
+                    className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-300 pointer-events-none"
                     style={{
                         backgroundImage: `url(${link.icon})`,
                         backgroundSize: '200%',
-                        backgroundPosition: 'right center',
+                        backgroundPosition: 'center center',
                         filter: 'blur(20px) brightness(1.2)',
                     }}
                 />
