@@ -261,26 +261,50 @@ function App() {
       const { active, over } = event;
 
       if (active && over && active.id !== over.id && isSortingLinks) {
-          const catLinks = links.filter(l => l.categoryId === isSortingLinks);
-          const oldIndex = catLinks.findIndex(l => l.id === active.id);
-          const newIndex = catLinks.findIndex(l => l.id === over.id);
+          if (isSortingLinks === 'pinned') {
+              // 处理置顶链接的排序
+              const oldIndex = pinnedLinks.findIndex(l => l.id === active.id);
+              const newIndex = pinnedLinks.findIndex(l => l.id === over.id);
 
-          if (oldIndex !== -1 && newIndex !== -1) {
-              const movedLink = catLinks[oldIndex];
-              const otherLinks = links.filter(l => l.categoryId !== isSortingLinks);
+              if (oldIndex !== -1 && newIndex !== -1) {
+                  const newPinnedLinks = [...pinnedLinks];
+                  const [removed] = newPinnedLinks.splice(oldIndex, 1);
+                  newPinnedLinks.splice(newIndex, 0, removed);
 
-              // Create new array with correct order
-              const newCatLinks = [...catLinks];
-              const [removed] = newCatLinks.splice(oldIndex, 1);
-              newCatLinks.splice(newIndex, 0, removed);
+                  // Update all links with new pinned order
+                  const updatedLinks = links.map(link => {
+                      const pinnedIndex = newPinnedLinks.findIndex(p => p.id === link.id);
+                      if (pinnedIndex !== -1) {
+                          return { ...link, order: pinnedIndex };
+                      }
+                      return link;
+                  });
 
-              // Update order property
-              const orderedCatLinks = newCatLinks.map((link, index) => ({
-                  ...link,
-                  order: index
-              }));
+                  updateData(updatedLinks, categories);
+              }
+          } else {
+              // 处理分类内链接的排序
+              const catLinks = links.filter(l => l.categoryId === isSortingLinks);
+              const oldIndex = catLinks.findIndex(l => l.id === active.id);
+              const newIndex = catLinks.findIndex(l => l.id === over.id);
 
-              updateData([...orderedCatLinks, ...otherLinks], categories);
+              if (oldIndex !== -1 && newIndex !== -1) {
+                  const movedLink = catLinks[oldIndex];
+                  const otherLinks = links.filter(l => l.categoryId !== isSortingLinks);
+
+                  // Create new array with correct order
+                  const newCatLinks = [...catLinks];
+                  const [removed] = newCatLinks.splice(oldIndex, 1);
+                  newCatLinks.splice(newIndex, 0, removed);
+
+                  // Update order property
+                  const orderedCatLinks = newCatLinks.map((link, index) => ({
+                      ...link,
+                      order: index
+                  }));
+
+                  updateData([...orderedCatLinks, ...otherLinks], categories);
+              }
           }
       }
 
@@ -1015,7 +1039,7 @@ function App() {
                      <button onClick={() => { setContextMenu(null); setDefaultCategoryId(contextMenu.link!.categoryId); setEditingLink(undefined); setIsModalOpen(true); }} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors text-left">
                          <PlusSquare size={16} className="text-slate-400"/> <span>添加</span>
                      </button>
-                     <button onClick={() => { setContextMenu(null); setIsSortingLinks(contextMenu.link!.categoryId); }} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors text-left">
+                     <button onClick={() => { setContextMenu(null); setIsSortingLinks(contextMenu.link!.pinned ? 'pinned' : contextMenu.link!.categoryId); }} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors text-left">
                          <Move size={16} className="text-slate-400"/> <span>排序</span>
                      </button>
                      <button onClick={() => { setContextMenu(null); setEditingLink(contextMenu.link!); setIsModalOpen(true); }} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors text-left">
@@ -1622,10 +1646,66 @@ function App() {
                         <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                             置顶 / 常用
                         </h2>
+                        {isSortingLinks === 'pinned' ? (
+                            <button
+                                onClick={handleSaveLinkSort}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
+                            >
+                                确认
+                            </button>
+                        ) : authToken && (
+                            <button
+                                onClick={() => setIsSortingLinks('pinned')}
+                                className="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 px-2 py-1 rounded text-xs font-medium transition-colors"
+                            >
+                                排序
+                            </button>
+                        )}
                     </div>
-                    <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
-                        {pinnedLinks.map(link => renderLinkCard(link))}
-                    </div>
+                    {isSortingLinks === 'pinned' ? (
+                        <DndContext sensors={sensors} onDragStart={handleLinkDragStart} onDragEnd={handleLinkDragEnd}>
+                            <SortableContext items={pinnedLinks.map(l => l.id)} strategy={rectSortingStrategy}>
+                                <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
+                                    {pinnedLinks.map(link => <SortableLinkCard key={link.id} link={link} isSorting={true} />)}
+                                </div>
+                            </SortableContext>
+                            <DragOverlay>
+                              {activeId ? (() => {
+                                const link = links.find(l => l.id === activeId);
+                                if (!link) return null;
+                                const iconDisplay = link.icon ? (
+                                   <img
+                                      src={link.icon}
+                                      alt=""
+                                      className="w-5 h-5 object-contain"
+                                  />
+                                ) : link.title.charAt(0);
+                                const isSimple = siteSettings.cardStyle === 'simple';
+                                return (
+                                  <div className={`group relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-300 dark:border-blue-600 shadow-2xl pointer-events-none`}>
+                                    <div className={`flex items-center gap-3 ${isSimple ? '' : 'mb-1.5'} pr-6`}>
+                                        <div className={`${isSimple ? 'w-6 h-6 text-xs' : 'w-8 h-8 text-sm'} rounded-lg bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold uppercase shrink-0 overflow-hidden`}>
+                                            {iconDisplay}
+                                        </div>
+                                        <h3 className="font-medium text-sm text-blue-600 dark:text-blue-400 truncate flex-1">
+                                            {link.title}
+                                        </h3>
+                                    </div>
+                                    {!isSimple && (
+                                        <div className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 h-4 w-full overflow-hidden">
+                                            {link.description || <span className="opacity-0">.</span>}
+                                        </div>
+                                    )}
+                                  </div>
+                                );
+                              })() : null}
+                            </DragOverlay>
+                        </DndContext>
+                    ) : (
+                        <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
+                            {pinnedLinks.map(link => renderLinkCard(link))}
+                        </div>
+                    )}
                 </section>
             )}
 
@@ -1637,10 +1717,66 @@ function App() {
                         <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                             置顶 / 常用
                         </h2>
+                        {isSortingLinks === 'pinned' ? (
+                            <button
+                                onClick={handleSaveLinkSort}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
+                            >
+                                确认
+                            </button>
+                        ) : authToken && (
+                            <button
+                                onClick={() => setIsSortingLinks('pinned')}
+                                className="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 px-2 py-1 rounded text-xs font-medium transition-colors"
+                            >
+                                排序
+                            </button>
+                        )}
                     </div>
-                    <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
-                        {pinnedLinks.map(link => renderLinkCard(link))}
-                    </div>
+                    {isSortingLinks === 'pinned' ? (
+                        <DndContext sensors={sensors} onDragStart={handleLinkDragStart} onDragEnd={handleLinkDragEnd}>
+                            <SortableContext items={pinnedLinks.map(l => l.id)} strategy={rectSortingStrategy}>
+                                <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
+                                    {pinnedLinks.map(link => <SortableLinkCard key={link.id} link={link} isSorting={true} />)}
+                                </div>
+                            </SortableContext>
+                            <DragOverlay>
+                              {activeId ? (() => {
+                                const link = links.find(l => l.id === activeId);
+                                if (!link) return null;
+                                const iconDisplay = link.icon ? (
+                                   <img
+                                      src={link.icon}
+                                      alt=""
+                                      className="w-5 h-5 object-contain"
+                                  />
+                                ) : link.title.charAt(0);
+                                const isSimple = siteSettings.cardStyle === 'simple';
+                                return (
+                                  <div className={`group relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-300 dark:border-blue-600 shadow-2xl pointer-events-none`}>
+                                    <div className={`flex items-center gap-3 ${isSimple ? '' : 'mb-1.5'} pr-6`}>
+                                        <div className={`${isSimple ? 'w-6 h-6 text-xs' : 'w-8 h-8 text-sm'} rounded-lg bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold uppercase shrink-0 overflow-hidden`}>
+                                            {iconDisplay}
+                                        </div>
+                                        <h3 className="font-medium text-sm text-blue-600 dark:text-blue-400 truncate flex-1">
+                                            {link.title}
+                                        </h3>
+                                    </div>
+                                    {!isSimple && (
+                                        <div className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 h-4 w-full overflow-hidden">
+                                            {link.description || <span className="opacity-0">.</span>}
+                                        </div>
+                                    )}
+                                  </div>
+                                );
+                              })() : null}
+                            </DragOverlay>
+                        </DndContext>
+                    ) : (
+                        <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
+                            {pinnedLinks.map(link => renderLinkCard(link))}
+                        </div>
+                    )}
                 </section>
             )}
 
