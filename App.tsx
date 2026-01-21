@@ -724,7 +724,7 @@ function App() {
                   activeCategory === cat.id
                       ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-medium'
                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-              } ${isSorting ? 'cursor-move border border-dashed border-blue-400 dark:border-blue-500' : ''} ${isDragging ? 'opacity-0' : ''}`}
+              } ${isSorting ? 'cursor-move border border-transparent border-dashed border-blue-400 dark:border-blue-500' : ''} ${isDragging ? 'opacity-0' : ''}`}
               onContextMenu={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -781,7 +781,7 @@ function App() {
         <div
             ref={setNodeRef}
             style={style}
-            className={`relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700/50 shadow-sm ${isSorting ? 'cursor-move border-dashed border-blue-400 dark:border-blue-500' : ''} ${isDragging ? 'opacity-0' : ''}`}
+            className={`relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700/50 shadow-sm ${isSorting ? 'cursor-move border-slate-100 border-dashed border-blue-400 dark:border-blue-500' : ''} ${isDragging ? 'opacity-0' : ''}`}
             title={link.description || link.url}
             {...attributes}
             {...listeners}
@@ -1187,7 +1187,7 @@ function App() {
               <span>全部链接</span>
             </button>
 
-            <div className="flex items-center justify-between pt-4 pb-2 px-4 h-7">
+            <div className="flex items-center justify-between pt-6 pb-3 px-4 h-8">
                <span className="text-[14px] font-semibold text-slate-400 uppercase tracking-wider">分类目录</span>
                {isSortingCategory === 'all' ? (
                    <button
