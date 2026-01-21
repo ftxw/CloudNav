@@ -1856,7 +1856,7 @@ function App() {
 
                 let catLinks = searchResults.filter(l => l.categoryId === cat.id);
                 const catOtherLinks = catLinks.filter(l => !l.pinned);
-                const isLocked = cat.password && (!authToken || !unlockedCategoryIds.has(cat.id));
+                const isLocked = cat.password && !authToken && !unlockedCategoryIds.has(cat.id);
 
                 return (
                     <section
