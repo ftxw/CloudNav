@@ -25,6 +25,8 @@
 *   **美化**: UI美化升级
 *   **修复**: 修复部分Bug，清除无用代码
 
+---
+
 ## ✨ 核心功能
 
 ### 🧠 AI 深度集成
@@ -45,8 +47,6 @@
     *   **侧边栏导航**: 按下快捷键 (如 Ctrl+Shift+E) 呼出侧边栏，在任意网页直接浏览、搜索和管理您的书签，无需离开当前页面。
 *   **置顶专区**: 常用网站一键置顶，在首页顶部常驻显示。
 *   **无缝迁移**: 支持导入 Chrome/Edge 书签 HTML 文件（智能去重）。
-
-详细部署教程请参考 [README.md](https://github.com/sese972010/CloudNav/blob/main/README.md)
 
 ---
 
@@ -98,6 +98,8 @@
 5.  **绑定变量**:
     *   进入 Pages 项目 -> KV存储 -> 绑定命名空间 -> 变量名填 `CLOUDNAV_KV`，命名空间选择刚才创建的 `CLOUDNAV_DB`。
 6.  **部署**: 重新部署项目即可。
+
+详细部署教程请参考 [原项目](https://github.com/sese972010/CloudNav/blob/main/README.md)
 
 ---
 
