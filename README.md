@@ -89,7 +89,7 @@
     *   进入 Pages 项目 -> KV存储 -> 绑定命名空间 -> 变量名填 `CLOUDNAV_KV`，命名空间选择刚才创建的 `CLOUDNAV_DB`。
 6.  **部署**: 重新部署项目即可。
 
-详细部署教程请参考 [原项目](https://github.com/sese972010/CloudNav/blob/main/README.md)
+**详细部署教程请参考 [原项目](https://github.com/sese972010/CloudNav/blob/main/README.md)**
 
 ---
 

@@ -781,7 +781,7 @@ function App() {
         <div
             ref={setNodeRef}
             style={style}
-            className={`relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700/50 shadow-sm ${isSorting ? 'cursor-move border-slate-100 border-dashed border-blue-400 dark:border-blue-500' : ''} ${isDragging ? 'opacity-0' : ''}`}
+            className={`relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-white dark:bg-slate-800 rounded-xl border ${isSorting ? 'cursor-move border-dashed border-blue-400 dark:border-blue-500' : 'border-slate-100 dark:border-slate-700/50'} shadow-sm ${isDragging ? 'opacity-0' : ''}`}
             title={link.description || link.url}
             {...attributes}
             {...listeners}
