@@ -1471,6 +1471,31 @@ function App() {
                 <span>排序</span>
               </button>
             </>
+          ) : categorySectionMenu.categoryId === 'pinned' ? (
+            <>
+              <button
+                onClick={() => {
+                  setCategorySectionMenu(null);
+                  setDefaultCategoryId(undefined);
+                  setEditingLink(undefined);
+                  setIsModalOpen(true);
+                }}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-left"
+              >
+                <PlusSquare size={16} className="text-slate-400"/>
+                <span>添加</span>
+              </button>
+              <button
+                onClick={() => {
+                  setCategorySectionMenu(null);
+                  setIsSortingLinks('pinned');
+                }}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-left"
+              >
+                <Move size={16} className="text-slate-400"/>
+                <span>排序</span>
+              </button>
+            </>
           ) : (
             <>
               <button
@@ -1662,25 +1687,36 @@ function App() {
 
             {/* 全部链接模式：置顶链接在最顶部显示 */}
             {activeCategory === 'all' && pinnedLinks.length > 0 && !searchQuery && (
-                <section>
-                    <div className="flex items-center gap-2 mb-4">
-                        <Pin size={16} className="text-blue-500 fill-blue-500" />
-                        <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                            置顶 / 常用
-                        </h2>
-                        {isSortingLinks === 'pinned' ? (
+                <section
+                    onContextMenu={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        // Check if right-click was on a link card
+                        const target = e.target as HTMLElement;
+                        const linkCard = target.closest('a[href]');
+                        if (!linkCard) {
+                            // Right-click was on empty space
+                            let x = e.clientX;
+                            let y = e.clientY;
+                            if (x + 200 > window.innerWidth) x = window.innerWidth - 210;
+                            if (y + 180 > window.innerHeight) y = window.innerHeight - 190;
+                            setCategorySectionMenu({ x, y, categoryId: 'pinned' });
+                        }
+                    }}
+                >
+                    <div className="flex items-center justify-between mb-4 pb-2">
+                        <div className="flex items-center gap-2">
+                            <Pin size={16} className="text-blue-500 fill-blue-500" />
+                            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                置顶 / 常用
+                            </h2>
+                        </div>
+                        {isSortingLinks === 'pinned' && (
                             <button
                                 onClick={handleSaveLinkSort}
                                 className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
                             >
                                 确认
-                            </button>
-                        ) : authToken && (
-                            <button
-                                onClick={() => setIsSortingLinks('pinned')}
-                                className="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 px-2 py-1 rounded text-xs font-medium transition-colors"
-                            >
-                                排序
                             </button>
                         )}
                     </div>
@@ -1733,25 +1769,36 @@ function App() {
 
             {/* 单独分类模式：置顶链接在该分类之前显示 */}
             {activeCategory !== 'all' && pinnedLinks.length > 0 && !searchQuery && (
-                <section>
-                    <div className="flex items-center gap-2 mb-4">
-                        <Pin size={16} className="text-blue-500 fill-blue-500" />
-                        <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                            置顶 / 常用
-                        </h2>
-                        {isSortingLinks === 'pinned' ? (
+                <section
+                    onContextMenu={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        // Check if right-click was on a link card
+                        const target = e.target as HTMLElement;
+                        const linkCard = target.closest('a[href]');
+                        if (!linkCard) {
+                            // Right-click was on empty space
+                            let x = e.clientX;
+                            let y = e.clientY;
+                            if (x + 200 > window.innerWidth) x = window.innerWidth - 210;
+                            if (y + 180 > window.innerHeight) y = window.innerHeight - 190;
+                            setCategorySectionMenu({ x, y, categoryId: 'pinned' });
+                        }
+                    }}
+                >
+                    <div className="flex items-center justify-between mb-4 pb-2">
+                        <div className="flex items-center gap-2">
+                            <Pin size={16} className="text-blue-500 fill-blue-500" />
+                            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                置顶 / 常用
+                            </h2>
+                        </div>
+                        {isSortingLinks === 'pinned' && (
                             <button
                                 onClick={handleSaveLinkSort}
                                 className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
                             >
                                 确认
-                            </button>
-                        ) : authToken && (
-                            <button
-                                onClick={() => setIsSortingLinks('pinned')}
-                                className="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 px-2 py-1 rounded text-xs font-medium transition-colors"
-                            >
-                                排序
                             </button>
                         )}
                     </div>
