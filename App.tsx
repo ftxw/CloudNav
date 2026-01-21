@@ -737,6 +737,7 @@ function App() {
           <div
               ref={setNodeRef}
               style={style}
+              data-category-item
               className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl group relative ${
                   activeCategory === cat.id
                       ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-medium'
@@ -1216,34 +1217,52 @@ function App() {
                ) : null}
             </div>
 
-            <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-                <SortableContext items={categories.map(c => c.id)} strategy={verticalListSortingStrategy}>
-                    {categories.map(cat => {
-                        const isSorting = isSortingCategory === 'all';
-                        return <SortableCategoryItem key={cat.id} cat={cat} isSorting={isSorting} />;
-                    })}
-                </SortableContext>
-                <DragOverlay>
-                  {activeId ? (
-                    <div className="w-full bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-300 dark:border-blue-600 flex items-center gap-3 px-4 py-2.5 shadow-2xl pointer-events-none">
-                      {(() => {
-                        const cat = categories.find(c => c.id === activeId);
-                        if (!cat) return null;
-                        const isEmoji = cat.icon && cat.icon.length <= 4 && !/^[a-zA-Z]+$/.test(cat.icon);
-                        const isLocked = cat.password && !unlockedCategoryIds.has(cat.id);
-                        return (
-                          <>
-                            <div className="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-800 flex items-center justify-center">
-                              {isLocked ? <Lock size={16} className="text-amber-500" /> : (isEmoji ? <span className="text-base leading-none">{cat.icon}</span> : <Icon name={cat.icon} size={16} className="text-blue-600 dark:text-blue-400" />)}
-                            </div>
-                            <span className="truncate flex-1 text-left text-blue-600 dark:text-blue-400 font-medium">{cat.name}</span>
-                          </>
-                        );
-                      })()}
-                    </div>
-                  ) : null}
-                </DragOverlay>
-            </DndContext>
+            <div
+                onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    // Check if right-click was on a category item
+                    const target = e.target as HTMLElement;
+                    const categoryItem = target.closest('[data-category-item]');
+                    if (!categoryItem && authToken) {
+                        // Right-click was on empty space
+                        let x = e.clientX;
+                        let y = e.clientY;
+                        if (x + 200 > window.innerWidth) x = window.innerWidth - 210;
+                        if (y + 180 > window.innerHeight) y = window.innerHeight - 190;
+                        setCategorySectionMenu({ x, y, categoryId: 'sidebar' });
+                    }
+                }}
+            >
+                <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+                    <SortableContext items={categories.map(c => c.id)} strategy={verticalListSortingStrategy}>
+                        {categories.map(cat => {
+                            const isSorting = isSortingCategory === 'all';
+                            return <SortableCategoryItem key={cat.id} cat={cat} isSorting={isSorting} />;
+                        })}
+                    </SortableContext>
+                    <DragOverlay>
+                      {activeId ? (
+                        <div className="w-full bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-300 dark:border-blue-600 flex items-center gap-3 px-4 py-2.5 shadow-2xl pointer-events-none">
+                          {(() => {
+                            const cat = categories.find(c => c.id === activeId);
+                            if (!cat) return null;
+                            const isEmoji = cat.icon && cat.icon.length <= 4 && !/^[a-zA-Z]+$/.test(cat.icon);
+                            const isLocked = cat.password && !unlockedCategoryIds.has(cat.id);
+                            return (
+                              <>
+                                <div className="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-800 flex items-center justify-center">
+                                  {isLocked ? <Lock size={16} className="text-amber-500" /> : (isEmoji ? <span className="text-base leading-none">{cat.icon}</span> : <Icon name={cat.icon} size={16} className="text-blue-600 dark:text-blue-400" />)}
+                                </div>
+                                <span className="truncate flex-1 text-left text-blue-600 dark:text-blue-400 font-medium">{cat.name}</span>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      ) : null}
+                    </DragOverlay>
+                </DndContext>
+            </div>
         </div>
 
         <div className="p-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 shrink-0">
@@ -1354,28 +1373,55 @@ function App() {
           onClick={(e) => e.stopPropagation()}
           onContextMenu={(e) => e.preventDefault()}
         >
-          <button
-            onClick={() => {
-              setCategorySectionMenu(null);
-              setDefaultCategoryId(categorySectionMenu.categoryId);
-              setEditingLink(undefined);
-              setIsModalOpen(true);
-            }}
-            className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-left"
-          >
-            <PlusSquare size={16} className="text-slate-400"/>
-            <span>添加</span>
-          </button>
-          <button
-            onClick={() => {
-              setCategorySectionMenu(null);
-              setIsSortingLinks(categorySectionMenu.categoryId);
-            }}
-            className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-left"
-          >
-            <Move size={16} className="text-slate-400"/>
-            <span>排序</span>
-          </button>
+          {categorySectionMenu.categoryId === 'sidebar' ? (
+            <>
+              <button
+                onClick={() => {
+                  setCategorySectionMenu(null);
+                  handleAddCategory();
+                }}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-left"
+              >
+                <PlusSquare size={16} className="text-slate-400"/>
+                <span>添加</span>
+              </button>
+              <button
+                onClick={() => {
+                  setCategorySectionMenu(null);
+                  handleSortCategory();
+                }}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-left"
+              >
+                <Move size={16} className="text-slate-400"/>
+                <span>排序</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => {
+                  setCategorySectionMenu(null);
+                  setDefaultCategoryId(categorySectionMenu.categoryId);
+                  setEditingLink(undefined);
+                  setIsModalOpen(true);
+                }}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-left"
+              >
+                <PlusSquare size={16} className="text-slate-400"/>
+                <span>添加</span>
+              </button>
+              <button
+                onClick={() => {
+                  setCategorySectionMenu(null);
+                  setIsSortingLinks(categorySectionMenu.categoryId);
+                }}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-left"
+              >
+                <Move size={16} className="text-slate-400"/>
+                <span>排序</span>
+              </button>
+            </>
+          )}
         </div>
       )}
 
