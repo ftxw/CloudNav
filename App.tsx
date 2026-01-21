@@ -39,7 +39,7 @@ import ImportModal from './components/ImportModal';
 import SettingsModal from './components/SettingsModal';
 import SearchSettingsModal from './components/SearchSettingsModal';
 
-const GITHUB_REPO_URL = 'https://github.com/sese972010/CloudNav-';
+const GITHUB_REPO_URL = 'https://github.com/ftxw/CloudNav';
 
 const LOCAL_STORAGE_KEY = 'cloudnav_data_cache';
 const AUTH_KEY = 'cloudnav_auth_token';
@@ -724,7 +724,7 @@ function App() {
                   activeCategory === cat.id
                       ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-medium'
                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-              } ${isSorting ? 'cursor-move border-2 border-dashed border-blue-400 dark:border-blue-500' : 'border-2 border-transparent cursor-pointer'} ${isDragging ? 'opacity-0' : ''}`}
+              } ${isSorting ? 'cursor-move border border-dashed border-blue-400 dark:border-blue-500' : 'border-2 border-transparent cursor-pointer'} ${isDragging ? 'opacity-0' : ''}`}
               onContextMenu={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -1187,8 +1187,8 @@ function App() {
               <span>全部链接</span>
             </button>
 
-            <div className="flex items-end justify-between pt-4 pb-2 px-4 h-8">
-               <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">分类目录</span>
+            <div className="flex items-center justify-between pt-4 pb-2 px-4 h-8">
+               <span className="text-[14px] font-semibold text-slate-400 uppercase tracking-wider">分类目录</span>
                {isSortingCategory === 'all' ? (
                    <button
                       onClick={handleSaveCategorySort}
@@ -1613,7 +1613,7 @@ function App() {
                             ) : (
                              <div className={`grid gap-3 ${catLinks.length === 0 ? '' : siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
                                 {catLinks.length === 0 ? (
-                                    <div className="text-center py-8 text-slate-400 text-sm italic">
+                                    <div className="text-center py-8 text-slate-400 text-sm">
                                         暂无链接
                                     </div>
                                 ) : (

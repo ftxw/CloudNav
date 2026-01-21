@@ -48,8 +48,8 @@ export interface AIConfig {
 }
 
 export const DEFAULT_CATEGORIES: Category[] = [
-  { id: 'common', name: '常用推荐', icon: 'Star' },
-  { id: 'dev', name: '开发工具', icon: 'Code' },
+  { id: 'common', name: '常用推荐', icon: 'Folder' },
+  { id: 'dev', name: '开发工具', icon: 'LayoutPanelLeft' },
   { id: 'design', name: '设计资源', icon: 'Palette' },
   { id: 'read', name: '阅读资讯', icon: 'BookOpen' },
   { id: 'ent', name: '休闲娱乐', icon: 'Gamepad2' },
