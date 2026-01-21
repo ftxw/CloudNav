@@ -262,23 +262,22 @@ function App() {
 
       if (active && over && active.id !== over.id && isSortingLinks) {
           if (isSortingLinks === 'pinned') {
-              // 处理置顶链接的排序
+              // 处理置顶链接的排序 - 只更新 pinnedOrder
               const pinnedLinkIds = pinnedLinks.map(l => l.id);
               const oldIndex = pinnedLinkIds.indexOf(active.id);
               const newIndex = pinnedLinkIds.indexOf(over.id);
 
               if (oldIndex !== -1 && newIndex !== -1) {
                   const newLinks = [...links];
-                  const movedLink = newLinks.find(l => l.id === active.id);
-                  if (!movedLink) return;
-
-                  // 找到 movedLink 在 newLinks 中的真实索引
-                  const realOldIndex = newLinks.findIndex(l => l.id === active.id);
-
-                  // 从 links 中移除并重新插入到正确的位置
-                  newLinks.splice(realOldIndex, 1);
-                  newLinks.splice(newIndex, 0, movedLink);
-
+                  // 重新计算所有置顶链接的 pinnedOrder
+                  const pinnedLinksList = newLinks.filter(l => l.pinned);
+                  arrayMove(pinnedLinksList, oldIndex, newIndex);
+                  pinnedLinksList.forEach((link, index) => {
+                      const targetLink = newLinks.find(l => l.id === link.id);
+                      if (targetLink) {
+                          targetLink.pinnedOrder = index;
+                      }
+                  });
                   updateData(newLinks, categories);
               }
           } else {
@@ -664,13 +663,33 @@ function App() {
       id: Date.now().toString(),
       createdAt: Date.now()
     };
+    // 如果是置顶链接，设置初始 pinnedOrder
+    if (newLink.pinned) {
+      const maxPinnedOrder = links.reduce((max, link) => {
+          return link.pinned && link.pinnedOrder !== undefined ? Math.max(max, link.pinnedOrder) : max;
+      }, -1);
+      newLink.pinnedOrder = maxPinnedOrder + 1;
+    }
     updateData([newLink, ...links], categories);
     setPrefillLink(undefined);
   };
 
   const handleEditLink = (data: Omit<LinkItem, 'id' | 'createdAt'>) => {
     if (!editingLink) return;
-    const updated = links.map(l => l.id === editingLink.id ? { ...l, ...data } : l);
+    const updated = links.map(l => {
+        if (l.id === editingLink.id) {
+            const newLink = { ...l, ...data };
+            // 如果从未置顶变为置顶，设置初始 pinnedOrder
+            if (newLink.pinned && l.pinnedOrder === undefined) {
+                const maxPinnedOrder = links.reduce((max, link) => {
+                    return link.pinned && link.pinnedOrder !== undefined ? Math.max(max, link.pinnedOrder) : max;
+                }, -1);
+                newLink.pinnedOrder = maxPinnedOrder + 1;
+            }
+            return newLink;
+        }
+        return l;
+    });
     updateData(updated, categories);
     setEditingLink(undefined);
   };
@@ -876,8 +895,14 @@ function App() {
   };
 
   const pinnedLinks = useMemo(() => {
-      // 始终显示所有置顶链接
-      return links.filter(l => l.pinned === true && !isCategoryLocked(l.categoryId));
+      // 始终显示所有置顶链接，并按照 pinnedOrder 排序
+      return links
+          .filter(l => l.pinned === true && !isCategoryLocked(l.categoryId))
+          .sort((a, b) => {
+              const orderA = a.pinnedOrder ?? Number.MAX_SAFE_INTEGER;
+              const orderB = b.pinnedOrder ?? Number.MAX_SAFE_INTEGER;
+              return orderA - orderB;
+          });
   }, [links, categories, unlockedCategoryIds]);
 
   const searchResults = useMemo(() => {
