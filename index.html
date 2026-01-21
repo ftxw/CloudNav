@@ -2,32 +2,19 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <title>Loading...</title>
     <script>
       (function() {
+        var customTitle = 'CloudNav - 我的导航';
         try {
-          const stored = localStorage.getItem('cloudnav_data_cache');
+          var stored = localStorage.getItem('cloudnav_data_cache');
           if (stored) {
-            const data = JSON.parse(stored);
+            var data = JSON.parse(stored);
             if (data.settings && data.settings.title) {
-              document.title = data.settings.title;
-            } else {
-              document.title = 'CloudNav - 我的导航';
+              customTitle = data.settings.title;
             }
-            if (data.settings && data.settings.favicon) {
-              setTimeout(function() {
-                const link = document.querySelector("link[rel~='icon']");
-                if (link) {
-                  link.href = data.settings.favicon;
-                }
-              }, 0);
-            }
-          } else {
-            document.title = 'CloudNav - 我的导航';
           }
-        } catch (e) {
-          document.title = 'CloudNav - 我的导航';
-        }
+        } catch (e) {}
+        document.write('<title>' + customTitle + '</title>');
       })();
     </script>
     <link rel="icon" type="image/svg+xml" href="https://lucide.dev/favicon.ico" />
