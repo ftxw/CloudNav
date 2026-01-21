@@ -2,25 +2,24 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
+    <title></title>
     <script>
-      var cnv$settings = (function() {
+      (function() {
+        var defaultTitle = 'CloudNav - 我的导航';
+        var customTitle = defaultTitle;
         try {
           var stored = localStorage.getItem('cloudnav_data_cache');
-          return stored ? JSON.parse(stored).settings : null;
-        } catch (e) {
-          return null;
+          if (stored) {
+            var data = JSON.parse(stored);
+            if (data.settings && data.settings.title) {
+              customTitle = data.settings.title;
+            }
+          }
+        } catch (e) {}
+        if (document.title !== customTitle) {
+          document.title = customTitle;
         }
       })();
-    </script>
-    <title>CloudNav - 我的导航</title>
-    <script>
-      if (cnv$settings && cnv$settings.title) {
-        document.title = cnv$settings.title;
-      }
-      if (cnv$settings && cnv$settings.favicon) {
-        var link = document.querySelector("link[rel~='icon']");
-        if (link) link.href = cnv$settings.favicon;
-      }
     </script>
   <script type="importmap">
 {
