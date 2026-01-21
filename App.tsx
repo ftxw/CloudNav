@@ -87,7 +87,7 @@ function App() {
   const [showEngineSelector, setShowEngineSelector] = useState(false);
 
   // Context Menu State
-  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, link: LinkItem | null } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, link: LinkItem | null, inPinnedSection?: boolean } | null>(null);
 
   // Category Context Menu State
   const [categoryContextMenu, setCategoryContextMenu] = useState<{ x: number, y: number, category: Category | null } | null>(null);
@@ -269,10 +269,12 @@ function App() {
 
               if (oldIndex !== -1 && newIndex !== -1) {
                   const newLinks = [...links];
-                  // 重新计算所有置顶链接的 pinnedOrder
+                  // 获取所有置顶链接，按照当前顺序
                   const pinnedLinksList = newLinks.filter(l => l.pinned);
-                  arrayMove(pinnedLinksList, oldIndex, newIndex);
-                  pinnedLinksList.forEach((link, index) => {
+                  // 使用 arrayMove 重新排序
+                  const reorderedPinnedLinks = arrayMove(pinnedLinksList, oldIndex, newIndex);
+                  // 根据新顺序更新每个链接的 pinnedOrder
+                  reorderedPinnedLinks.forEach((link, index) => {
                       const targetLink = newLinks.find(l => l.id === link.id);
                       if (targetLink) {
                           targetLink.pinnedOrder = index;
@@ -956,7 +958,10 @@ function App() {
                 // Boundary adjustment
                 if (x + 180 > window.innerWidth) x = window.innerWidth - 190;
                 if (y + 220 > window.innerHeight) y = window.innerHeight - 230;
-                setContextMenu({ x, y, link });
+                // 检查是否在置顶区域内右键
+                const target = e.currentTarget;
+                const inPinnedSection = target.closest('section')?.querySelector('h2')?.textContent?.includes('置顶 / 常用') ?? false;
+                setContextMenu({ x, y, link, inPinnedSection });
                 return false;
             }}
             onMouseMove={(e) => {
@@ -1054,12 +1059,12 @@ function App() {
              {authToken && (
                  <>
                      <div className="h-px bg-slate-100 dark:bg-slate-700 my-1 mx-2"/>
-                     <button onClick={() => { setContextMenu(null); setDefaultCategoryId(contextMenu.link!.categoryId); setEditingLink(undefined); setIsModalOpen(true); }} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors text-left">
-                         <PlusSquare size={16} className="text-slate-400"/> <span>添加</span>
-                     </button>
-                     <button onClick={() => { setContextMenu(null); setIsSortingLinks(contextMenu.link!.pinned ? 'pinned' : contextMenu.link!.categoryId); }} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors text-left">
-                         <Move size={16} className="text-slate-400"/> <span>排序</span>
-                     </button>
+                     <button onClick={() => { setContextMenu(null); setDefaultCategoryId(contextMenu.inPinnedSection ? undefined : contextMenu.link!.categoryId); setEditingLink(undefined); setIsModalOpen(true); }} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors text-left">
+                        <PlusSquare size={16} className="text-slate-400"/> <span>添加</span>
+                    </button>
+                    <button onClick={() => { setContextMenu(null); setIsSortingLinks(contextMenu.inPinnedSection ? 'pinned' : contextMenu.link!.categoryId); }} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors text-left">
+                        <Move size={16} className="text-slate-400"/> <span>排序</span>
+                    </button>
                      <button onClick={() => { setContextMenu(null); setEditingLink(contextMenu.link!); setIsModalOpen(true); }} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors text-left">
                          <Edit2 size={16} className="text-slate-400"/> <span>编辑</span>
                      </button>
@@ -1799,20 +1804,18 @@ function App() {
             )}
 
             {categories.map(cat => {
-                // 当选择特定分类时，只显示该分类；否则显示所有分类
-                if (activeCategory !== 'all' && activeCategory !== cat.id) return null;
+                // 本地搜索时，显示所有匹配的分类；非搜索时根据 activeCategory 过滤
+                if (searchQuery && searchMode === 'local') {
+                    // 本地搜索模式：只显示有匹配链接的分类
+                    let catLinks = searchResults.filter(l => l.categoryId === cat.id);
+                    if (catLinks.length === 0) return null;
+                } else if (activeCategory !== 'all' && activeCategory !== cat.id) {
+                    return null;
+                }
 
                 let catLinks = searchResults.filter(l => l.categoryId === cat.id);
                 const catOtherLinks = catLinks.filter(l => !l.pinned);
                 const isLocked = cat.password && !unlockedCategoryIds.has(cat.id);
-
-                // Logic Fix: If External Search, do NOT hide categories based on links
-                // Because external search doesn't filter links.
-                // However, the user probably wants to see the links grid even when typing for external search
-                // Current logic: if search query exists AND local search -> filter.
-                // If search query exists AND external search -> show all (searchResults returns all).
-
-                if (searchQuery && searchMode === 'local' && catLinks.length === 0) return null;
 
                 return (
                     <section
