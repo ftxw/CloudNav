@@ -832,9 +832,10 @@ function App() {
               {...listeners}
           >
               <div className={`p-1.5 rounded-lg flex items-center justify-center ${activeCategory === cat.id ? 'bg-blue-100 dark:bg-blue-800' : 'bg-slate-100 dark:bg-slate-800'}`}>
-                  {isLocked ? <Lock size={16} className="text-amber-500" /> : (isEmoji ? <span className="text-base leading-none">{cat.icon}</span> : <Icon name={cat.icon} size={16} />)}
+                  {isEmoji ? <span className="text-base leading-none">{cat.icon}</span> : <Icon name={cat.icon} size={16} />}
               </div>
               <span className="truncate flex-1 text-left">{cat.name}</span>
+              {cat.password && <Lock size={14} className="text-amber-500 shrink-0" />}
           </div>
       );
   };
