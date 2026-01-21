@@ -1683,31 +1683,39 @@ function App() {
           </div>
         </header>
 
-        <div className="p-4 lg:p-8 space-y-8">
+        <div
+            className="p-4 lg:p-8 space-y-8"
+            onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                // Check if right-click was on a link card
+                const target = e.target as HTMLElement;
+                const linkCard = target.closest('a[href]');
+                if (!linkCard) {
+                    // Right-click was on empty space
+                    let x = e.clientX;
+                    let y = e.clientY;
+                    if (x + 200 > window.innerWidth) x = window.innerWidth - 210;
+                    if (y + 180 > window.innerHeight) y = window.innerHeight - 190;
+                    // Determine if click is in pinned section or category section
+                    const targetElement = e.target as HTMLElement;
+                    const pinnedSection = targetElement.closest('section')?.querySelector('h2')?.textContent?.includes('置顶 / 常用') ?? false;
+                    if (pinnedSection) {
+                        setCategorySectionMenu({ x, y, categoryId: 'pinned' });
+                    } else if (activeCategory !== 'all') {
+                        setCategorySectionMenu({ x, y, categoryId: activeCategory });
+                    }
+                }
+            }}
+        >
 
             {/* 全部链接模式：置顶链接在最顶部显示 */}
             {activeCategory === 'all' && pinnedLinks.length > 0 && !searchQuery && (
-                <section
-                    onContextMenu={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        // Check if right-click was on a link card
-                        const target = e.target as HTMLElement;
-                        const linkCard = target.closest('a[href]');
-                        if (!linkCard) {
-                            // Right-click was on empty space
-                            let x = e.clientX;
-                            let y = e.clientY;
-                            if (x + 200 > window.innerWidth) x = window.innerWidth - 210;
-                            if (y + 180 > window.innerHeight) y = window.innerHeight - 190;
-                            setCategorySectionMenu({ x, y, categoryId: 'pinned' });
-                        }
-                    }}
-                >
-                    <div className="flex items-center justify-between mb-4 pb-2">
+                <section>
+                    <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
                         <div className="flex items-center gap-2">
                             <Pin size={16} className="text-blue-500 fill-blue-500" />
-                            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200">
                                 置顶 / 常用
                             </h2>
                         </div>
@@ -1769,27 +1777,11 @@ function App() {
 
             {/* 单独分类模式：置顶链接在该分类之前显示 */}
             {activeCategory !== 'all' && pinnedLinks.length > 0 && !searchQuery && (
-                <section
-                    onContextMenu={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        // Check if right-click was on a link card
-                        const target = e.target as HTMLElement;
-                        const linkCard = target.closest('a[href]');
-                        if (!linkCard) {
-                            // Right-click was on empty space
-                            let x = e.clientX;
-                            let y = e.clientY;
-                            if (x + 200 > window.innerWidth) x = window.innerWidth - 210;
-                            if (y + 180 > window.innerHeight) y = window.innerHeight - 190;
-                            setCategorySectionMenu({ x, y, categoryId: 'pinned' });
-                        }
-                    }}
-                >
-                    <div className="flex items-center justify-between mb-4 pb-2">
+                <section>
+                    <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
                         <div className="flex items-center gap-2">
                             <Pin size={16} className="text-blue-500 fill-blue-500" />
-                            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200">
                                 置顶 / 常用
                             </h2>
                         </div>
@@ -1868,21 +1860,6 @@ function App() {
                         key={cat.id}
                         id={`cat-${cat.id}`}
                         className="scroll-mt-24"
-                        onContextMenu={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            // Check if right-click was on a link card
-                            const target = e.target as HTMLElement;
-                            const linkCard = target.closest('a[href]');
-                            if (!linkCard) {
-                                // Right-click was on empty space
-                                let x = e.clientX;
-                                let y = e.clientY;
-                                if (x + 200 > window.innerWidth) x = window.innerWidth - 210;
-                                if (y + 180 > window.innerHeight) y = window.innerHeight - 190;
-                                setCategorySectionMenu({ x, y, categoryId: cat.id });
-                            }
-                        }}
                     >
                         <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
                              <div className="flex items-center gap-2">
