@@ -749,9 +749,8 @@ function App() {
       }
   };
 
-  const handleUnlockCategory = (catId: string, password: string) => {
-      const cat = categories.find(c => c.id === catId);
-      if (cat && cat.password === password) {
+  const handleUnlockCategory = (catId: string, password: string, success: boolean) => {
+      if (success) {
           setUnlockedCategoryIds(prev => new Set(prev).add(catId));
       }
   };
