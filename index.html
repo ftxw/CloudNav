@@ -2,6 +2,7 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
+    <title>Loading...</title>
     <script>
       (function() {
         try {
@@ -10,20 +11,25 @@
             const data = JSON.parse(stored);
             if (data.settings && data.settings.title) {
               document.title = data.settings.title;
+            } else {
+              document.title = 'CloudNav - 我的导航';
             }
             if (data.settings && data.settings.favicon) {
-              const link = document.querySelector("link[rel~='icon']");
-              if (link) {
-                link.href = data.settings.favicon;
-              }
+              setTimeout(function() {
+                const link = document.querySelector("link[rel~='icon']");
+                if (link) {
+                  link.href = data.settings.favicon;
+                }
+              }, 0);
             }
+          } else {
+            document.title = 'CloudNav - 我的导航';
           }
         } catch (e) {
-          // Ignore errors
+          document.title = 'CloudNav - 我的导航';
         }
       })();
     </script>
-    <title>CloudNav - 我的导航</title>
     <link rel="icon" type="image/svg+xml" href="https://lucide.dev/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script type="importmap">
