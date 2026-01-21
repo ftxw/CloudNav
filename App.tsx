@@ -1196,8 +1196,8 @@ function App() {
             <button
               onClick={() => scrollToCategory('all')}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                activeCategory === 'all' 
-                  ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-medium' 
+                activeCategory === 'all'
+                  ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-medium'
                   : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
               }`}
             >
@@ -1233,6 +1233,7 @@ function App() {
                         setCategorySectionMenu({ x, y, categoryId: 'sidebar' });
                     }
                 }}
+                className="relative min-h-[200px]"
             >
                 <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
                     <SortableContext items={categories.map(c => c.id)} strategy={verticalListSortingStrategy}>
