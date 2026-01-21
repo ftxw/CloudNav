@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Lock, Folder, Star, Save, BookOpen, Book, Gamepad2, Image, Wallpaper, SquarePlay, Headphones, CodeXml, SquareTerminal, Archive, CaseSensitive, FileText, PanelsTopLeft, Shield, Gem, CircleDollarSign, Hamburger, Palette, SwatchBook, Baseline, Camera, Aperture, Film, BriefcaseBusiness, PencilRuler, MapPinned } from 'lucide-react';
+import { X, Lock, Folder, Star, Tag, Monitor, Smartphone, Tv, Camera, PencilRuler, Image, Palette, CaseSensitive, LayoutPanelLeft, CodeXml, Bot, PanelsTopLeft, FileText, Book, BookOpen, Music, Film, Store, Shield, Wallet, Gem, Hamburger, Wheat, Cloud, Microscope, Atom, Gamepad2, Plane, Map } from 'lucide-react';
 import { Category } from '../types';
 
 export type ModalMode = 'add' | 'edit' | 'merge';
@@ -16,43 +16,44 @@ interface CategoryModalProps {
 }
 
 const iconList = [
-  'Folder', 'Save', 'Star',
-  'BookOpen', 'Book',
-  'Gamepad2', 'Image', 'Wallpaper', 'SquarePlay', 'Headphones', 'Aperture', 'Film',
-  'CodeXml', 'SquareTerminal', 'Archive', 'CaseSensitive', 'FileText', 'PanelsTopLeft', 'Shield',
-  'Gem', 'CircleDollarSign', 'Hamburger', 'Palette', 'SwatchBook', 'Baseline', 'Camera', 'BriefcaseBusiness', 'PencilRuler', 'MapPinned'
+  'Folder', 'Star', 'Tag', 'Monitor', 'Smartphone', 'Tv', 'Camera', 'PencilRuler', 'Image', 'Palette', 'CaseSensitive',
+  'LayoutPanelLeft', 'CodeXml', 'Bot', 'PanelsTopLeft', 'FileText', 'Book', 'BookOpen', 'Music', 'Film',
+  'Store', 'Shield', 'Wallet', 'Gem', 'Hamburger', 'Wheat', 'Cloud', 'Microscope', 'Atom', 'Gamepad2', 'Plane', 'Map'
 ];
 
 const iconComponents: { [key: string]: any } = {
   Folder,
-  Save,
   Star,
-  BookOpen,
-  Book,
-  Gamepad2,
-  Image,
-  Wallpaper,
-  SquarePlay,
-  Headphones,
-  CodeXml,
-  SquareTerminal,
-  Archive,
-  CaseSensitive,
-  FileText,
-  PanelsTopLeft,
-  Shield,
-  Gem,
-  CircleDollarSign,
-  Hamburger,
-  Palette,
-  SwatchBook,
-  Baseline,
+  Tag,
+  Monitor,
+  Smartphone,
+  Tv,
   Camera,
-  Aperture,
-  Film,
-  BriefcaseBusiness,
   PencilRuler,
-  MapPinned,
+  Image,
+  Palette,
+  CaseSensitive,
+  LayoutPanelLeft,
+  CodeXml,
+  Bot,
+  PanelsTopLeft,
+  FileText,
+  Book,
+  BookOpen,
+  Music,
+  Film,
+  Store,
+  Shield,
+  Wallet,
+  Gem,
+  Hamburger,
+  Wheat,
+  Cloud,
+  Microscope,
+  Atom,
+  Gamepad2,
+  Plane,
+  Map,
 };
 
 const IconDisplay = ({ iconName, size = 20 }: { iconName: string, size?: number }) => {
