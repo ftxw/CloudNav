@@ -1924,7 +1924,7 @@ function App() {
                              <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
                                 {catLinks.map(link => renderLinkCard(link))}
                              </div>
-                            ))}
+                            )}
                     </section>
                 );
             })}
