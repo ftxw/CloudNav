@@ -263,24 +263,23 @@ function App() {
       if (active && over && active.id !== over.id && isSortingLinks) {
           if (isSortingLinks === 'pinned') {
               // 处理置顶链接的排序
-              const oldIndex = pinnedLinks.findIndex(l => l.id === active.id);
-              const newIndex = pinnedLinks.findIndex(l => l.id === over.id);
+              const pinnedLinkIds = pinnedLinks.map(l => l.id);
+              const oldIndex = pinnedLinkIds.indexOf(active.id);
+              const newIndex = pinnedLinkIds.indexOf(over.id);
 
               if (oldIndex !== -1 && newIndex !== -1) {
-                  const newPinnedLinks = [...pinnedLinks];
-                  const [removed] = newPinnedLinks.splice(oldIndex, 1);
-                  newPinnedLinks.splice(newIndex, 0, removed);
+                  const newLinks = [...links];
+                  const movedLink = newLinks.find(l => l.id === active.id);
+                  if (!movedLink) return;
 
-                  // Update all links with new pinned order
-                  const updatedLinks = links.map(link => {
-                      const pinnedIndex = newPinnedLinks.findIndex(p => p.id === link.id);
-                      if (pinnedIndex !== -1) {
-                          return { ...link, order: pinnedIndex };
-                      }
-                      return link;
-                  });
+                  // 找到 movedLink 在 newLinks 中的真实索引
+                  const realOldIndex = newLinks.findIndex(l => l.id === active.id);
 
-                  updateData(updatedLinks, categories);
+                  // 从 links 中移除并重新插入到正确的位置
+                  newLinks.splice(realOldIndex, 1);
+                  newLinks.splice(newIndex, 0, movedLink);
+
+                  updateData(newLinks, categories);
               }
           } else {
               // 处理分类内链接的排序
@@ -297,13 +296,7 @@ function App() {
                   const [removed] = newCatLinks.splice(oldIndex, 1);
                   newCatLinks.splice(newIndex, 0, removed);
 
-                  // Update order property
-                  const orderedCatLinks = newCatLinks.map((link, index) => ({
-                      ...link,
-                      order: index
-                  }));
-
-                  updateData([...orderedCatLinks, ...otherLinks], categories);
+                  updateData([...newCatLinks, ...otherLinks], categories);
               }
           }
       }
