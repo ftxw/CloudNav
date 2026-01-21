@@ -3,22 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <script>
-      (function() {
-        var customTitle = 'CloudNav - 我的导航';
+      var cnv$settings = (function() {
         try {
           var stored = localStorage.getItem('cloudnav_data_cache');
-          if (stored) {
-            var data = JSON.parse(stored);
-            if (data.settings && data.settings.title) {
-              customTitle = data.settings.title;
-            }
-          }
-        } catch (e) {}
-        document.write('<title>' + customTitle + '</title>');
+          return stored ? JSON.parse(stored).settings : null;
+        } catch (e) {
+          return null;
+        }
       })();
     </script>
-    <link rel="icon" type="image/svg+xml" href="https://lucide.dev/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CloudNav - 我的导航</title>
+    <script>
+      if (cnv$settings && cnv$settings.title) {
+        document.title = cnv$settings.title;
+      }
+      if (cnv$settings && cnv$settings.favicon) {
+        var link = document.querySelector("link[rel~='icon']");
+        if (link) link.href = cnv$settings.favicon;
+      }
+    </script>
   <script type="importmap">
 {
   "imports": {
