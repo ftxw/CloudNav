@@ -263,16 +263,15 @@ function App() {
       if (active && over && active.id !== over.id && isSortingLinks) {
           if (isSortingLinks === 'pinned') {
               // 处理置顶链接的排序 - 只更新 pinnedOrder
+              // pinnedLinks 已经按 pinnedOrder 排序好了
               const pinnedLinkIds = pinnedLinks.map(l => l.id);
               const oldIndex = pinnedLinkIds.indexOf(active.id);
               const newIndex = pinnedLinkIds.indexOf(over.id);
 
               if (oldIndex !== -1 && newIndex !== -1) {
                   const newLinks = [...links];
-                  // 获取所有置顶链接，按照当前顺序
-                  const pinnedLinksList = newLinks.filter(l => l.pinned);
-                  // 使用 arrayMove 重新排序
-                  const reorderedPinnedLinks = arrayMove(pinnedLinksList, oldIndex, newIndex);
+                  // 直接使用 pinnedLinks（已排序）来进行重新排序
+                  const reorderedPinnedLinks = arrayMove(pinnedLinks, oldIndex, newIndex);
                   // 根据新顺序更新每个链接的 pinnedOrder
                   reorderedPinnedLinks.forEach((link, index) => {
                       const targetLink = newLinks.find(l => l.id === link.id);
