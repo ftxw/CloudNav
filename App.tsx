@@ -520,19 +520,23 @@ function App() {
           const sectionElement = target.closest('section');
           if (sectionElement) {
               const linkInSection = sectionElement.querySelector('a[href]');
-              if (!linkInSection) return; // 允许分类空白区域右键菜单
+              if (!linkInSection && authToken) return; // 允许分类空白区域右键菜单
           }
           
           // 检查是否在分类项上
           const categoryItem = target.closest('[data-category-item]');
           if (categoryItem) return; // 允许分类项右键菜单
           
-          // 检查是否在侧边栏内（除了分类项）
+          // 检查是否在侧边栏空白区域（有认证令牌时允许）
           const sidebarElement = target.closest('aside');
-          if (sidebarElement) {
+          if (sidebarElement && authToken) {
               const categoryItemInSidebar = target.closest('[data-category-item]');
               const buttonElement = target.closest('button');
-              if (!categoryItemInSidebar && !buttonElement) return; // 允许侧边栏空白区域右键菜单
+              const headerElement = target.closest('.p-4.border-b'); // 侧边栏头部
+              const footerElement = target.closest('.border-t'); // 侧边栏底部
+              if (!categoryItemInSidebar && !buttonElement && !headerElement && !footerElement) {
+                  return; // 允许侧边栏空白区域右键菜单
+              }
           }
           
           // 其他所有区域禁用右键
