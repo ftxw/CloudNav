@@ -1233,7 +1233,7 @@ function App() {
                ) : null}
             </div>
 
-            <div className="categories-section relative">
+            <div className="categories-section relative space-y-1">
                 <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
                     <SortableContext items={categories.map(c => c.id)} strategy={verticalListSortingStrategy}>
                         {categories.map(cat => {
