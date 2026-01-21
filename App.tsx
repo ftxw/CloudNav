@@ -724,7 +724,7 @@ function App() {
                   activeCategory === cat.id
                       ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-medium'
                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-              } ${isSorting ? 'cursor-move border border-transparent border-dashed border-blue-400 dark:border-blue-500' : ''} ${isDragging ? 'opacity-0' : ''}`}
+              } border ${isSorting ? 'cursor-move border-dashed border-blue-400 dark:border-blue-500' : 'border-transparent'} ${isDragging ? 'opacity-0' : ''}`}
               onContextMenu={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
