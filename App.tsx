@@ -1854,7 +1854,7 @@ function App() {
 
                 let catLinks = searchResults.filter(l => l.categoryId === cat.id);
                 const catOtherLinks = catLinks.filter(l => !l.pinned);
-                const isLocked = cat.password && !unlockedCategoryIds.has(cat.id);
+                const isLocked = cat.password && (!authToken || !unlockedCategoryIds.has(cat.id));
 
                 return (
                     <section
@@ -1870,7 +1870,7 @@ function App() {
                                 <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200">
                                     {cat.name}
                                 </h2>
-                                {cat.password && <Lock size={16} className="text-amber-500" />}
+                                {isLocked && <Lock size={16} className="text-amber-500" />}
                              </div>
                              {isSortingLinks === cat.id && (
                                  <button
@@ -1882,7 +1882,21 @@ function App() {
                              )}
                         </div>
 
-                        {isSortingLinks === cat.id ? (
+                        {isLocked ? (
+                             <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 p-8 flex flex-col items-center justify-center text-center">
+                                <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mb-4 text-amber-600 dark:text-amber-400">
+                                    <Lock size={24} />
+                                </div>
+                                <h3 className="text-slate-800 dark:text-slate-200 font-medium mb-1">私密目录</h3>
+                                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">该分类已加密，需要验证密码才能查看内容</p>
+                                <button
+                                    onClick={() => setCatAuthModalData(cat)}
+                                    className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium transition-colors"
+                                >
+                                    输入密码解锁
+                                </button>
+                             </div>
+                        ) : isSortingLinks === cat.id ? (
                                 <DndContext sensors={sensors} onDragStart={handleLinkDragStart} onDragEnd={handleLinkDragEnd}>
                                     <SortableContext items={catLinks.map(l => l.id)} strategy={rectSortingStrategy}>
                                         <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
