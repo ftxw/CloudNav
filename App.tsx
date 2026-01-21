@@ -87,7 +87,7 @@ function App() {
   const [showEngineSelector, setShowEngineSelector] = useState(false);
 
   // Context Menu State
-  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, link: LinkItem | null } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, link: LinkItem | null, inPinnedSection?: boolean } | null>(null);
 
   // Category Context Menu State
   const [categoryContextMenu, setCategoryContextMenu] = useState<{ x: number, y: number, category: Category | null } | null>(null);
@@ -261,26 +261,43 @@ function App() {
       const { active, over } = event;
 
       if (active && over && active.id !== over.id && isSortingLinks) {
-          const catLinks = links.filter(l => l.categoryId === isSortingLinks);
-          const oldIndex = catLinks.findIndex(l => l.id === active.id);
-          const newIndex = catLinks.findIndex(l => l.id === over.id);
+          if (isSortingLinks === 'pinned') {
+              // 处理置顶链接的排序 - 只更新 pinnedOrder
+              // pinnedLinks 已经按 pinnedOrder 排序好了
+              const pinnedLinkIds = pinnedLinks.map(l => l.id);
+              const oldIndex = pinnedLinkIds.indexOf(active.id);
+              const newIndex = pinnedLinkIds.indexOf(over.id);
 
-          if (oldIndex !== -1 && newIndex !== -1) {
-              const movedLink = catLinks[oldIndex];
-              const otherLinks = links.filter(l => l.categoryId !== isSortingLinks);
+              if (oldIndex !== -1 && newIndex !== -1) {
+                  const newLinks = [...links];
+                  // 直接使用 pinnedLinks（已排序）来进行重新排序
+                  const reorderedPinnedLinks = arrayMove(pinnedLinks, oldIndex, newIndex);
+                  // 根据新顺序更新每个链接的 pinnedOrder
+                  reorderedPinnedLinks.forEach((link, index) => {
+                      const targetLink = newLinks.find(l => l.id === link.id);
+                      if (targetLink) {
+                          targetLink.pinnedOrder = index;
+                      }
+                  });
+                  updateData(newLinks, categories);
+              }
+          } else {
+              // 处理分类内链接的排序
+              const catLinks = links.filter(l => l.categoryId === isSortingLinks);
+              const oldIndex = catLinks.findIndex(l => l.id === active.id);
+              const newIndex = catLinks.findIndex(l => l.id === over.id);
 
-              // Create new array with correct order
-              const newCatLinks = [...catLinks];
-              const [removed] = newCatLinks.splice(oldIndex, 1);
-              newCatLinks.splice(newIndex, 0, removed);
+              if (oldIndex !== -1 && newIndex !== -1) {
+                  const movedLink = catLinks[oldIndex];
+                  const otherLinks = links.filter(l => l.categoryId !== isSortingLinks);
 
-              // Update order property
-              const orderedCatLinks = newCatLinks.map((link, index) => ({
-                  ...link,
-                  order: index
-              }));
+                  // Create new array with correct order
+                  const newCatLinks = [...catLinks];
+                  const [removed] = newCatLinks.splice(oldIndex, 1);
+                  newCatLinks.splice(newIndex, 0, removed);
 
-              updateData([...orderedCatLinks, ...otherLinks], categories);
+                  updateData([...newCatLinks, ...otherLinks], categories);
+              }
           }
       }
 
@@ -508,15 +525,52 @@ function App() {
          closeAllMenus();
       };
 
+      // 全局禁用右键菜单（除了程序提供的特定区域）
+      const handleContextMenu = (e: MouseEvent) => {
+          const target = e.target as HTMLElement;
+          
+          // 检查是否在链接卡片上
+          const linkCard = target.closest('a[href]');
+          if (linkCard) return; // 允许链接右键菜单
+          
+          // 检查是否在分类空白区域
+          const sectionElement = target.closest('section');
+          if (sectionElement) {
+              const linkInSection = sectionElement.querySelector('a[href]');
+              if (!linkInSection && authToken) return; // 允许分类空白区域右键菜单
+          }
+          
+          // 检查是否在分类项上
+          const categoryItem = target.closest('[data-category-item]');
+          if (categoryItem) return; // 允许分类项右键菜单
+          
+          // 检查是否在侧边栏空白区域（有认证令牌时允许）
+          const sidebarElement = target.closest('aside');
+          if (sidebarElement && authToken) {
+              const categoryItemInSidebar = target.closest('[data-category-item]');
+              const buttonElement = target.closest('button');
+              const headerElement = target.closest('.p-4.border-b'); // 侧边栏头部
+              const footerElement = target.closest('.border-t'); // 侧边栏底部
+              if (!categoryItemInSidebar && !buttonElement && !headerElement && !footerElement) {
+                  return; // 允许侧边栏空白区域右键菜单
+              }
+          }
+          
+          // 其他所有区域禁用右键
+          e.preventDefault();
+      };
+
       // 任何点击（左键或右键）都关闭右键菜单
       window.addEventListener('click', handleClickOutside);
       window.addEventListener('mousedown', handleClickOutside);
       window.addEventListener('scroll', handleScroll, true);
+      window.addEventListener('contextmenu', handleContextMenu);
 
       return () => {
           window.removeEventListener('click', handleClickOutside);
           window.removeEventListener('mousedown', handleClickOutside);
           window.removeEventListener('scroll', handleScroll, true);
+          window.removeEventListener('contextmenu', handleContextMenu);
       }
   }, [openMenuId, contextMenu, categoryContextMenu, categorySectionMenu, showEngineSelector, isSortingCategory, isSortingLinks]);
 
@@ -610,13 +664,33 @@ function App() {
       id: Date.now().toString(),
       createdAt: Date.now()
     };
+    // 如果是置顶链接，设置初始 pinnedOrder
+    if (newLink.pinned) {
+      const maxPinnedOrder = links.reduce((max, link) => {
+          return link.pinned && link.pinnedOrder !== undefined ? Math.max(max, link.pinnedOrder) : max;
+      }, -1);
+      newLink.pinnedOrder = maxPinnedOrder + 1;
+    }
     updateData([newLink, ...links], categories);
     setPrefillLink(undefined);
   };
 
   const handleEditLink = (data: Omit<LinkItem, 'id' | 'createdAt'>) => {
     if (!editingLink) return;
-    const updated = links.map(l => l.id === editingLink.id ? { ...l, ...data } : l);
+    const updated = links.map(l => {
+        if (l.id === editingLink.id) {
+            const newLink = { ...l, ...data };
+            // 如果从未置顶变为置顶，设置初始 pinnedOrder
+            if (newLink.pinned && l.pinnedOrder === undefined) {
+                const maxPinnedOrder = links.reduce((max, link) => {
+                    return link.pinned && link.pinnedOrder !== undefined ? Math.max(max, link.pinnedOrder) : max;
+                }, -1);
+                newLink.pinnedOrder = maxPinnedOrder + 1;
+            }
+            return newLink;
+        }
+        return l;
+    });
     updateData(updated, categories);
     setEditingLink(undefined);
   };
@@ -675,8 +749,10 @@ function App() {
       }
   };
 
-  const handleUnlockCategory = (catId: string) => {
-      setUnlockedCategoryIds(prev => new Set(prev).add(catId));
+  const handleUnlockCategory = (catId: string, password: string, success: boolean) => {
+      if (success) {
+          setUnlockedCategoryIds(prev => new Set(prev).add(catId));
+      }
   };
 
   const handleSaveWebDavConfig = (config: WebDavConfig) => {
@@ -758,9 +834,10 @@ function App() {
               {...listeners}
           >
               <div className={`p-1.5 rounded-lg flex items-center justify-center ${activeCategory === cat.id ? 'bg-blue-100 dark:bg-blue-800' : 'bg-slate-100 dark:bg-slate-800'}`}>
-                  {isLocked ? <Lock size={16} className="text-amber-500" /> : (isEmoji ? <span className="text-base leading-none">{cat.icon}</span> : <Icon name={cat.icon} size={16} />)}
+                  {isEmoji ? <span className="text-base leading-none">{cat.icon}</span> : <Icon name={cat.icon} size={16} />}
               </div>
               <span className="truncate flex-1 text-left">{cat.name}</span>
+              {cat.password && <Lock size={14} className="text-amber-500 shrink-0" />}
           </div>
       );
   };
@@ -822,8 +899,14 @@ function App() {
   };
 
   const pinnedLinks = useMemo(() => {
-      // 始终显示所有置顶链接
-      return links.filter(l => l.pinned === true && !isCategoryLocked(l.categoryId));
+      // 始终显示所有置顶链接，并按照 pinnedOrder 排序
+      return links
+          .filter(l => l.pinned === true && !isCategoryLocked(l.categoryId))
+          .sort((a, b) => {
+              const orderA = a.pinnedOrder ?? Number.MAX_SAFE_INTEGER;
+              const orderB = b.pinnedOrder ?? Number.MAX_SAFE_INTEGER;
+              return orderA - orderB;
+          });
   }, [links, categories, unlockedCategoryIds]);
 
   const searchResults = useMemo(() => {
@@ -877,7 +960,10 @@ function App() {
                 // Boundary adjustment
                 if (x + 180 > window.innerWidth) x = window.innerWidth - 190;
                 if (y + 220 > window.innerHeight) y = window.innerHeight - 230;
-                setContextMenu({ x, y, link });
+                // 检查是否在置顶区域内右键
+                const target = e.currentTarget;
+                const inPinnedSection = target.closest('section')?.querySelector('h2')?.textContent?.includes('置顶 / 常用') ?? false;
+                setContextMenu({ x, y, link, inPinnedSection });
                 return false;
             }}
             onMouseMove={(e) => {
@@ -975,12 +1061,12 @@ function App() {
              {authToken && (
                  <>
                      <div className="h-px bg-slate-100 dark:bg-slate-700 my-1 mx-2"/>
-                     <button onClick={() => { setContextMenu(null); setDefaultCategoryId(contextMenu.link!.categoryId); setEditingLink(undefined); setIsModalOpen(true); }} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors text-left">
-                         <PlusSquare size={16} className="text-slate-400"/> <span>添加</span>
-                     </button>
-                     <button onClick={() => { setContextMenu(null); setIsSortingLinks(contextMenu.link!.categoryId); }} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors text-left">
-                         <Move size={16} className="text-slate-400"/> <span>排序</span>
-                     </button>
+                     <button onClick={() => { setContextMenu(null); setDefaultCategoryId(contextMenu.inPinnedSection ? undefined : contextMenu.link!.categoryId); setEditingLink(undefined); setIsModalOpen(true); }} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors text-left">
+                        <PlusSquare size={16} className="text-slate-400"/> <span>添加</span>
+                    </button>
+                    <button onClick={() => { setContextMenu(null); setIsSortingLinks(contextMenu.inPinnedSection ? 'pinned' : contextMenu.link!.categoryId); }} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors text-left">
+                        <Move size={16} className="text-slate-400"/> <span>排序</span>
+                    </button>
                      <button onClick={() => { setContextMenu(null); setEditingLink(contextMenu.link!); setIsModalOpen(true); }} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors text-left">
                          <Edit2 size={16} className="text-slate-400"/> <span>编辑</span>
                      </button>
@@ -1388,6 +1474,31 @@ function App() {
                 <span>排序</span>
               </button>
             </>
+          ) : categorySectionMenu.categoryId === 'pinned' ? (
+            <>
+              <button
+                onClick={() => {
+                  setCategorySectionMenu(null);
+                  setDefaultCategoryId(undefined);
+                  setEditingLink(undefined);
+                  setIsModalOpen(true);
+                }}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-left"
+              >
+                <PlusSquare size={16} className="text-slate-400"/>
+                <span>添加</span>
+              </button>
+              <button
+                onClick={() => {
+                  setCategorySectionMenu(null);
+                  setIsSortingLinks('pinned');
+                }}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-left"
+              >
+                <Move size={16} className="text-slate-400"/>
+                <span>排序</span>
+              </button>
+            </>
           ) : (
             <>
               <button
@@ -1575,74 +1686,183 @@ function App() {
           </div>
         </header>
 
-        <div className="p-4 lg:p-8 space-y-8">
+        <div
+            className="p-4 lg:p-8 space-y-8"
+            onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                // Check if right-click was on a link card
+                const target = e.target as HTMLElement;
+                const linkCard = target.closest('a[href]');
+                if (!linkCard) {
+                    // Right-click was on empty space
+                    let x = e.clientX;
+                    let y = e.clientY;
+                    if (x + 200 > window.innerWidth) x = window.innerWidth - 210;
+                    if (y + 180 > window.innerHeight) y = window.innerHeight - 190;
+                    // Determine if click is in pinned section or category section
+                    const targetElement = e.target as HTMLElement;
+                    const pinnedSection = targetElement.closest('section')?.querySelector('h2')?.textContent?.includes('置顶 / 常用') ?? false;
+                    if (pinnedSection) {
+                        setCategorySectionMenu({ x, y, categoryId: 'pinned' });
+                    } else if (activeCategory !== 'all') {
+                        setCategorySectionMenu({ x, y, categoryId: activeCategory });
+                    }
+                }
+            }}
+        >
 
             {/* 全部链接模式：置顶链接在最顶部显示 */}
             {activeCategory === 'all' && pinnedLinks.length > 0 && !searchQuery && (
                 <section>
-                    <div className="flex items-center gap-2 mb-4">
-                        <Pin size={16} className="text-blue-500 fill-blue-500" />
-                        <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                            置顶 / 常用
-                        </h2>
+                    <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+                        <div className="flex items-center gap-2">
+                            <Pin size={16} className="text-blue-500 fill-blue-500" />
+                            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200">
+                                置顶 / 常用
+                            </h2>
+                        </div>
+                        {isSortingLinks === 'pinned' && (
+                            <button
+                                onClick={handleSaveLinkSort}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
+                            >
+                                确认
+                            </button>
+                        )}
                     </div>
-                    <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
-                        {pinnedLinks.map(link => renderLinkCard(link))}
-                    </div>
+                    {isSortingLinks === 'pinned' ? (
+                        <DndContext sensors={sensors} onDragStart={handleLinkDragStart} onDragEnd={handleLinkDragEnd}>
+                            <SortableContext items={pinnedLinks.map(l => l.id)} strategy={rectSortingStrategy}>
+                                <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
+                                    {pinnedLinks.map(link => <SortableLinkCard key={link.id} link={link} isSorting={true} />)}
+                                </div>
+                            </SortableContext>
+                            <DragOverlay>
+                              {activeId ? (() => {
+                                const link = links.find(l => l.id === activeId);
+                                if (!link) return null;
+                                const iconDisplay = link.icon ? (
+                                   <img
+                                      src={link.icon}
+                                      alt=""
+                                      className="w-5 h-5 object-contain"
+                                  />
+                                ) : link.title.charAt(0);
+                                const isSimple = siteSettings.cardStyle === 'simple';
+                                return (
+                                  <div className={`group relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-300 dark:border-blue-600 shadow-2xl pointer-events-none`}>
+                                    <div className={`flex items-center gap-3 ${isSimple ? '' : 'mb-1.5'} pr-6`}>
+                                        <div className={`${isSimple ? 'w-6 h-6 text-xs' : 'w-8 h-8 text-sm'} rounded-lg bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold uppercase shrink-0 overflow-hidden`}>
+                                            {iconDisplay}
+                                        </div>
+                                        <h3 className="font-medium text-sm text-blue-600 dark:text-blue-400 truncate flex-1">
+                                            {link.title}
+                                        </h3>
+                                    </div>
+                                    {!isSimple && (
+                                        <div className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 h-4 w-full overflow-hidden">
+                                            {link.description || <span className="opacity-0">.</span>}
+                                        </div>
+                                    )}
+                                  </div>
+                                );
+                              })() : null}
+                            </DragOverlay>
+                        </DndContext>
+                    ) : (
+                        <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
+                            {pinnedLinks.map(link => renderLinkCard(link))}
+                        </div>
+                    )}
                 </section>
             )}
 
             {/* 单独分类模式：置顶链接在该分类之前显示 */}
             {activeCategory !== 'all' && pinnedLinks.length > 0 && !searchQuery && (
                 <section>
-                    <div className="flex items-center gap-2 mb-4">
-                        <Pin size={16} className="text-blue-500 fill-blue-500" />
-                        <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                            置顶 / 常用
-                        </h2>
+                    <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+                        <div className="flex items-center gap-2">
+                            <Pin size={16} className="text-blue-500 fill-blue-500" />
+                            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200">
+                                置顶 / 常用
+                            </h2>
+                        </div>
+                        {isSortingLinks === 'pinned' && (
+                            <button
+                                onClick={handleSaveLinkSort}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
+                            >
+                                确认
+                            </button>
+                        )}
                     </div>
-                    <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
-                        {pinnedLinks.map(link => renderLinkCard(link))}
-                    </div>
+                    {isSortingLinks === 'pinned' ? (
+                        <DndContext sensors={sensors} onDragStart={handleLinkDragStart} onDragEnd={handleLinkDragEnd}>
+                            <SortableContext items={pinnedLinks.map(l => l.id)} strategy={rectSortingStrategy}>
+                                <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
+                                    {pinnedLinks.map(link => <SortableLinkCard key={link.id} link={link} isSorting={true} />)}
+                                </div>
+                            </SortableContext>
+                            <DragOverlay>
+                              {activeId ? (() => {
+                                const link = links.find(l => l.id === activeId);
+                                if (!link) return null;
+                                const iconDisplay = link.icon ? (
+                                   <img
+                                      src={link.icon}
+                                      alt=""
+                                      className="w-5 h-5 object-contain"
+                                  />
+                                ) : link.title.charAt(0);
+                                const isSimple = siteSettings.cardStyle === 'simple';
+                                return (
+                                  <div className={`group relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-300 dark:border-blue-600 shadow-2xl pointer-events-none`}>
+                                    <div className={`flex items-center gap-3 ${isSimple ? '' : 'mb-1.5'} pr-6`}>
+                                        <div className={`${isSimple ? 'w-6 h-6 text-xs' : 'w-8 h-8 text-sm'} rounded-lg bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold uppercase shrink-0 overflow-hidden`}>
+                                            {iconDisplay}
+                                        </div>
+                                        <h3 className="font-medium text-sm text-blue-600 dark:text-blue-400 truncate flex-1">
+                                            {link.title}
+                                        </h3>
+                                    </div>
+                                    {!isSimple && (
+                                        <div className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 h-4 w-full overflow-hidden">
+                                            {link.description || <span className="opacity-0">.</span>}
+                                        </div>
+                                    )}
+                                  </div>
+                                );
+                              })() : null}
+                            </DragOverlay>
+                        </DndContext>
+                    ) : (
+                        <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
+                            {pinnedLinks.map(link => renderLinkCard(link))}
+                        </div>
+                    )}
                 </section>
             )}
 
             {categories.map(cat => {
-                // 当选择特定分类时，只显示该分类；否则显示所有分类
-                if (activeCategory !== 'all' && activeCategory !== cat.id) return null;
+                // 本地搜索时，显示所有匹配的分类；非搜索时根据 activeCategory 过滤
+                if (searchQuery && searchMode === 'local') {
+                    // 本地搜索模式：只显示有匹配链接的分类
+                    let catLinks = searchResults.filter(l => l.categoryId === cat.id);
+                    if (catLinks.length === 0) return null;
+                } else if (activeCategory !== 'all' && activeCategory !== cat.id) {
+                    return null;
+                }
 
                 let catLinks = searchResults.filter(l => l.categoryId === cat.id);
                 const catOtherLinks = catLinks.filter(l => !l.pinned);
-                const isLocked = cat.password && !unlockedCategoryIds.has(cat.id);
-
-                // Logic Fix: If External Search, do NOT hide categories based on links
-                // Because external search doesn't filter links.
-                // However, the user probably wants to see the links grid even when typing for external search
-                // Current logic: if search query exists AND local search -> filter.
-                // If search query exists AND external search -> show all (searchResults returns all).
-
-                if (searchQuery && searchMode === 'local' && catLinks.length === 0) return null;
+                const isLocked = cat.password && !authToken && !unlockedCategoryIds.has(cat.id);
 
                 return (
                     <section
                         key={cat.id}
                         id={`cat-${cat.id}`}
                         className="scroll-mt-24"
-                        onContextMenu={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            // Check if right-click was on a link card
-                            const target = e.target as HTMLElement;
-                            const linkCard = target.closest('a[href]');
-                            if (!linkCard) {
-                                // Right-click was on empty space
-                                let x = e.clientX;
-                                let y = e.clientY;
-                                if (x + 200 > window.innerWidth) x = window.innerWidth - 210;
-                                if (y + 180 > window.innerHeight) y = window.innerHeight - 190;
-                                setCategorySectionMenu({ x, y, categoryId: cat.id });
-                            }
-                        }}
                     >
                         <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
                              <div className="flex items-center gap-2">
@@ -1678,8 +1898,7 @@ function App() {
                                     输入密码解锁
                                 </button>
                              </div>
-                        ) : (
-                            isSortingLinks === cat.id ? (
+                        ) : isSortingLinks === cat.id ? (
                                 <DndContext sensors={sensors} onDragStart={handleLinkDragStart} onDragEnd={handleLinkDragEnd}>
                                     <SortableContext items={catLinks.map(l => l.id)} strategy={rectSortingStrategy}>
                                         <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
@@ -1719,16 +1938,10 @@ function App() {
                                     </DragOverlay>
                                 </DndContext>
                             ) : (
-                             <div className={`grid gap-3 ${catLinks.length === 0 ? '' : siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
-                                {catLinks.length === 0 ? (
-                                    <div className="text-center py-8 text-slate-400 text-sm">
-                                        暂无链接
-                                    </div>
-                                ) : (
-                                    catLinks.map(link => renderLinkCard(link))
-                                )}
+                             <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
+                                {catLinks.map(link => renderLinkCard(link))}
                              </div>
-                            ))}
+                            )}
                     </section>
                 );
             })}
