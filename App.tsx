@@ -72,13 +72,14 @@ function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
-  // Site Settings - Initialized with defaults to prevent crash
-  const [siteSettings, setSiteSettings] = useState<SiteSettings>({
+  // Site Settings - Use global initial data if available
+  const initialSettings = (typeof window !== 'undefined' && (window as any).__CLOUDNAV_INITIAL_DATA__) || {
       title: 'CloudNav - 我的导航',
       navTitle: '云航 CloudNav',
       favicon: '',
       cardStyle: 'detailed'
-  });
+  };
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>(initialSettings);
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
@@ -425,9 +426,12 @@ function App() {
   }, []);
 
   useEffect(() => {
-      document.title = siteSettings.title || 'CloudNav';
+      // 标题已在 HTML 中初始化，这里仅在设置变更时更新
+      if (siteSettings.title && document.title !== siteSettings.title) {
+          document.title = siteSettings.title;
+      }
       const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-      if (link && siteSettings.favicon) {
+      if (link && siteSettings.favicon && link.href !== siteSettings.favicon) {
           link.href = siteSettings.favicon;
       }
   }, [siteSettings]);
