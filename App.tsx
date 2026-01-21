@@ -749,8 +749,11 @@ function App() {
       }
   };
 
-  const handleUnlockCategory = (catId: string) => {
-      setUnlockedCategoryIds(prev => new Set(prev).add(catId));
+  const handleUnlockCategory = (catId: string, password: string) => {
+      const cat = categories.find(c => c.id === catId);
+      if (cat && cat.password === password) {
+          setUnlockedCategoryIds(prev => new Set(prev).add(catId));
+      }
   };
 
   const handleSaveWebDavConfig = (config: WebDavConfig) => {

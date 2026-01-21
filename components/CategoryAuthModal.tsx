@@ -6,7 +6,7 @@ interface CategoryAuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   category: Category | null;
-  onUnlock: (categoryId: string) => void;
+  onUnlock: (categoryId: string, password: string) => void;
 }
 
 const CategoryAuthModal: React.FC<CategoryAuthModalProps> = ({ isOpen, onClose, category, onUnlock }) => {
@@ -17,14 +17,10 @@ const CategoryAuthModal: React.FC<CategoryAuthModalProps> = ({ isOpen, onClose, 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === category.password) {
-        onUnlock(category.id);
-        setPassword('');
-        setError('');
-        onClose();
-    } else {
-        setError('密码错误');
-    }
+    onUnlock(category.id, password);
+    setPassword('');
+    setError('');
+    onClose();
   };
 
   return (
