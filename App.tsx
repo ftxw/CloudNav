@@ -1192,7 +1192,23 @@ function App() {
             </span>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-1 scrollbar-hide">
+        <div
+            className="flex-1 overflow-y-auto p-4 space-y-1 scrollbar-hide"
+            onContextMenu={(e) => {
+                const target = e.target as HTMLElement;
+                const categoryItem = target.closest('[data-category-item]');
+                const isSidebarButton = target.closest('button');
+                if (!categoryItem && !isSidebarButton && authToken) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    let x = e.clientX;
+                    let y = e.clientY;
+                    if (x + 200 > window.innerWidth) x = window.innerWidth - 210;
+                    if (y + 180 > window.innerHeight) y = window.innerHeight - 190;
+                    setCategorySectionMenu({ x, y, categoryId: 'sidebar' });
+                }
+            }}
+        >
             <button
               onClick={() => scrollToCategory('all')}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
@@ -1217,22 +1233,7 @@ function App() {
                ) : null}
             </div>
 
-            <div
-                className="categories-section relative min-h-[200px]"
-                onContextMenu={(e) => {
-                    const target = e.target as HTMLElement;
-                    const categoryItem = target.closest('[data-category-item]');
-                    if (!categoryItem && authToken) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        let x = e.clientX;
-                        let y = e.clientY;
-                        if (x + 200 > window.innerWidth) x = window.innerWidth - 210;
-                        if (y + 180 > window.innerHeight) y = window.innerHeight - 190;
-                        setCategorySectionMenu({ x, y, categoryId: 'sidebar' });
-                    }
-                }}
-            >
+            <div className="categories-section relative">
                 <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
                     <SortableContext items={categories.map(c => c.id)} strategy={verticalListSortingStrategy}>
                         {categories.map(cat => {
