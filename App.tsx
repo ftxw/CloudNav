@@ -72,13 +72,14 @@ function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
-  // Site Settings - Initialized with defaults to prevent crash
-  const [siteSettings, setSiteSettings] = useState<SiteSettings>({
+  // Site Settings - Use global initial data if available
+  const initialSettings = (typeof window !== 'undefined' && (window as any).__CLOUDNAV_INITIAL_DATA__) || {
       title: 'CloudNav - 我的导航',
       navTitle: '云航 CloudNav',
       favicon: '',
       cardStyle: 'detailed'
-  });
+  };
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>(initialSettings);
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
@@ -90,6 +91,11 @@ function App() {
 
   // Category Context Menu State
   const [categoryContextMenu, setCategoryContextMenu] = useState<{ x: number, y: number, category: Category | null } | null>(null);
+
+  // Category Section Context Menu State (for empty space in category)
+  const [categorySectionMenu, setCategorySectionMenu] = useState<{ x: number, y: number, categoryId: string | null } | null>(null);
+
+  const categorySectionMenuRef = useRef<HTMLDivElement>(null);
 
   // Category Sort Mode
   const [isSortingCategory, setIsSortingCategory] = useState<string | null>(null);
@@ -425,9 +431,12 @@ function App() {
   }, []);
 
   useEffect(() => {
-      document.title = siteSettings.title || 'CloudNav';
+      // 标题已在 HTML 中初始化，这里仅在设置变更时更新
+      if (siteSettings.title && document.title !== siteSettings.title) {
+          document.title = siteSettings.title;
+      }
       const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-      if (link && siteSettings.favicon) {
+      if (link && siteSettings.favicon && link.href !== siteSettings.favicon) {
           link.href = siteSettings.favicon;
       }
   }, [siteSettings]);
@@ -437,6 +446,7 @@ function App() {
       const closeAllMenus = () => {
           if (contextMenu) setContextMenu(null);
           if (categoryContextMenu) setCategoryContextMenu(null);
+          if (categorySectionMenu) setCategorySectionMenu(null);
           if (showEngineSelector) setShowEngineSelector(false);
           if (isSortingCategory) {
               setIsSortingCategory(null);
@@ -461,6 +471,13 @@ function App() {
           if (categoryContextMenu && categoryContextMenuRef.current) {
               if (!categoryContextMenuRef.current.contains(target)) {
                   setCategoryContextMenu(null);
+              }
+          }
+
+          // 处理分类空白区域右键菜单
+          if (categorySectionMenu && categorySectionMenuRef.current) {
+              if (!categorySectionMenuRef.current.contains(target)) {
+                  setCategorySectionMenu(null);
               }
           }
 
@@ -501,7 +518,7 @@ function App() {
           window.removeEventListener('mousedown', handleClickOutside);
           window.removeEventListener('scroll', handleScroll, true);
       }
-  }, [openMenuId, contextMenu, categoryContextMenu, showEngineSelector, isSortingCategory, isSortingLinks]);
+  }, [openMenuId, contextMenu, categoryContextMenu, categorySectionMenu, showEngineSelector, isSortingCategory, isSortingLinks]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -720,6 +737,7 @@ function App() {
           <div
               ref={setNodeRef}
               style={style}
+              data-category-item
               className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl group relative ${
                   activeCategory === cat.id
                       ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-medium'
@@ -997,45 +1015,41 @@ function App() {
 
       {/* Delete Link Confirmation Modal */}
       {deleteLinkConfirm && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 dark:border-slate-700" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-700">
-              <h3 className="text-lg font-semibold dark:text-white">删除链接</h3>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-200 dark:border-slate-700 p-6 relative" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setDeleteLinkConfirm(null)}
+              className="absolute top-4 right-4 p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"
+            >
+              <X className="w-5 h-5 dark:text-slate-400" />
+            </button>
+
+            <div className="flex flex-col items-center mb-6">
+              <div className="w-14 h-14 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4 text-red-600 dark:text-red-400">
+                <AlertTriangle size={28} />
+              </div>
+              <h2 className="text-lg font-bold dark:text-white">删除链接</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400 text-center mt-2">
+                确定要删除此链接吗？
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-1 max-w-full">
+                {deleteLinkConfirm.title}
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleConfirmDeleteLink}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-4 rounded-xl transition-colors"
+              >
+                确认删除
+              </button>
               <button
                 onClick={() => setDeleteLinkConfirm(null)}
-                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"
+                className="flex-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 font-medium py-3 px-4 rounded-xl transition-colors"
               >
-                <X className="w-5 h-5 dark:text-slate-400" />
+                取消
               </button>
-            </div>
-            <div className="p-4 space-y-4">
-              <div className="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-900/20 rounded-xl">
-                <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center text-red-600 dark:text-red-400 shrink-0">
-                  <AlertTriangle size={20} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                    确定要删除此链接吗？
-                  </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                    {deleteLinkConfirm.title}
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={handleConfirmDeleteLink}
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
-                >
-                  确认删除
-                </button>
-                <button
-                  onClick={() => setDeleteLinkConfirm(null)}
-                  className="flex-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 font-medium py-2 px-4 rounded-lg transition-colors"
-                >
-                  取消
-                </button>
-              </div>
             </div>
           </div>
         </div>
@@ -1043,45 +1057,41 @@ function App() {
 
       {/* Delete Category Confirmation Modal */}
       {deleteCategoryConfirm && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 dark:border-slate-700" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-700">
-              <h3 className="text-lg font-semibold dark:text-white">删除分类</h3>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-200 dark:border-slate-700 p-6 relative" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setDeleteCategoryConfirm(null)}
+              className="absolute top-4 right-4 p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"
+            >
+              <X className="w-5 h-5 dark:text-slate-400" />
+            </button>
+
+            <div className="flex flex-col items-center mb-6">
+              <div className="w-14 h-14 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4 text-red-600 dark:text-red-400">
+                <AlertTriangle size={28} />
+              </div>
+              <h2 className="text-lg font-bold dark:text-white">删除分类</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400 text-center mt-2">
+                确定要删除分类"{deleteCategoryConfirm.name}"吗？
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 text-center mt-1.5">
+                该分类下的 {links.filter(l => l.categoryId === deleteCategoryConfirm.id).length} 个链接将一并删除，此操作不可恢复。
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleConfirmDeleteCategory}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-4 rounded-xl transition-colors"
+              >
+                确认删除
+              </button>
               <button
                 onClick={() => setDeleteCategoryConfirm(null)}
-                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"
+                className="flex-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 font-medium py-3 px-4 rounded-xl transition-colors"
               >
-                <X className="w-5 h-5 dark:text-slate-400" />
+                取消
               </button>
-            </div>
-            <div className="p-4 space-y-4">
-              <div className="flex items-start gap-3 p-4 bg-red-50 dark:bg-red-900/20 rounded-xl">
-                <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center text-red-600 dark:text-red-400 shrink-0">
-                  <AlertTriangle size={20} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                    确定要删除分类"{deleteCategoryConfirm.name}"吗？
-                  </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
-                    该分类下的 {links.filter(l => l.categoryId === deleteCategoryConfirm.id).length} 个链接将一并删除，此操作不可恢复。
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={handleConfirmDeleteCategory}
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
-                >
-                  确认删除
-                </button>
-                <button
-                  onClick={() => setDeleteCategoryConfirm(null)}
-                  className="flex-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 font-medium py-2 px-4 rounded-lg transition-colors"
-                >
-                  取消
-                </button>
-              </div>
             </div>
           </div>
         </div>
@@ -1174,12 +1184,28 @@ function App() {
             </span>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-1 scrollbar-hide">
+        <div
+            className="flex-1 overflow-y-auto p-4 space-y-1 scrollbar-hide"
+            onContextMenu={(e) => {
+                const target = e.target as HTMLElement;
+                const categoryItem = target.closest('[data-category-item]');
+                const isSidebarButton = target.closest('button');
+                if (!categoryItem && !isSidebarButton && authToken) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    let x = e.clientX;
+                    let y = e.clientY;
+                    if (x + 200 > window.innerWidth) x = window.innerWidth - 210;
+                    if (y + 180 > window.innerHeight) y = window.innerHeight - 190;
+                    setCategorySectionMenu({ x, y, categoryId: 'sidebar' });
+                }
+            }}
+        >
             <button
               onClick={() => scrollToCategory('all')}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                activeCategory === 'all' 
-                  ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-medium' 
+                activeCategory === 'all'
+                  ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-medium'
                   : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
               }`}
             >
@@ -1199,34 +1225,36 @@ function App() {
                ) : null}
             </div>
 
-            <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-                <SortableContext items={categories.map(c => c.id)} strategy={verticalListSortingStrategy}>
-                    {categories.map(cat => {
-                        const isSorting = isSortingCategory === 'all';
-                        return <SortableCategoryItem key={cat.id} cat={cat} isSorting={isSorting} />;
-                    })}
-                </SortableContext>
-                <DragOverlay>
-                  {activeId ? (
-                    <div className="w-full bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-300 dark:border-blue-600 flex items-center gap-3 px-4 py-2.5 shadow-2xl pointer-events-none">
-                      {(() => {
-                        const cat = categories.find(c => c.id === activeId);
-                        if (!cat) return null;
-                        const isEmoji = cat.icon && cat.icon.length <= 4 && !/^[a-zA-Z]+$/.test(cat.icon);
-                        const isLocked = cat.password && !unlockedCategoryIds.has(cat.id);
-                        return (
-                          <>
-                            <div className="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-800 flex items-center justify-center">
-                              {isLocked ? <Lock size={16} className="text-amber-500" /> : (isEmoji ? <span className="text-base leading-none">{cat.icon}</span> : <Icon name={cat.icon} size={16} className="text-blue-600 dark:text-blue-400" />)}
-                            </div>
-                            <span className="truncate flex-1 text-left text-blue-600 dark:text-blue-400 font-medium">{cat.name}</span>
-                          </>
-                        );
-                      })()}
-                    </div>
-                  ) : null}
-                </DragOverlay>
-            </DndContext>
+            <div className="categories-section relative space-y-1">
+                <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+                    <SortableContext items={categories.map(c => c.id)} strategy={verticalListSortingStrategy}>
+                        {categories.map(cat => {
+                            const isSorting = isSortingCategory === 'all';
+                            return <SortableCategoryItem key={cat.id} cat={cat} isSorting={isSorting} />;
+                        })}
+                    </SortableContext>
+                    <DragOverlay>
+                      {activeId ? (
+                        <div className="w-full bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-300 dark:border-blue-600 flex items-center gap-3 px-4 py-2.5 shadow-2xl pointer-events-none">
+                          {(() => {
+                            const cat = categories.find(c => c.id === activeId);
+                            if (!cat) return null;
+                            const isEmoji = cat.icon && cat.icon.length <= 4 && !/^[a-zA-Z]+$/.test(cat.icon);
+                            const isLocked = cat.password && !unlockedCategoryIds.has(cat.id);
+                            return (
+                              <>
+                                <div className="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-800 flex items-center justify-center">
+                                  {isLocked ? <Lock size={16} className="text-amber-500" /> : (isEmoji ? <span className="text-base leading-none">{cat.icon}</span> : <Icon name={cat.icon} size={16} className="text-blue-600 dark:text-blue-400" />)}
+                                </div>
+                                <span className="truncate flex-1 text-left text-blue-600 dark:text-blue-400 font-medium">{cat.name}</span>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      ) : null}
+                    </DragOverlay>
+                </DndContext>
+            </div>
         </div>
 
         <div className="p-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 shrink-0">
@@ -1325,6 +1353,67 @@ function App() {
             <Trash2 size={16} />
             <span>删除</span>
           </button>
+        </div>
+      )}
+
+      {/* Category Section Context Menu (for empty space) */}
+      {categorySectionMenu && authToken && (
+        <div
+          ref={categorySectionMenuRef}
+          className="fixed z-[9999] bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 w-40 py-2 flex flex-col animate-in fade-in zoom-in duration-100"
+          style={{ top: categorySectionMenu.y, left: categorySectionMenu.x, position: 'fixed' }}
+          onClick={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          {categorySectionMenu.categoryId === 'sidebar' ? (
+            <>
+              <button
+                onClick={() => {
+                  setCategorySectionMenu(null);
+                  handleAddCategory();
+                }}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-left"
+              >
+                <PlusSquare size={16} className="text-slate-400"/>
+                <span>添加</span>
+              </button>
+              <button
+                onClick={() => {
+                  setCategorySectionMenu(null);
+                  handleSortCategory();
+                }}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-left"
+              >
+                <Move size={16} className="text-slate-400"/>
+                <span>排序</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => {
+                  setCategorySectionMenu(null);
+                  setDefaultCategoryId(categorySectionMenu.categoryId);
+                  setEditingLink(undefined);
+                  setIsModalOpen(true);
+                }}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-left"
+              >
+                <PlusSquare size={16} className="text-slate-400"/>
+                <span>添加</span>
+              </button>
+              <button
+                onClick={() => {
+                  setCategorySectionMenu(null);
+                  setIsSortingLinks(categorySectionMenu.categoryId);
+                }}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-left"
+              >
+                <Move size={16} className="text-slate-400"/>
+                <span>排序</span>
+              </button>
+            </>
+          )}
         </div>
       )}
 
@@ -1535,7 +1624,26 @@ function App() {
                 if (searchQuery && searchMode === 'local' && catLinks.length === 0) return null;
 
                 return (
-                    <section key={cat.id} id={`cat-${cat.id}`} className="scroll-mt-24">
+                    <section
+                        key={cat.id}
+                        id={`cat-${cat.id}`}
+                        className="scroll-mt-24"
+                        onContextMenu={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            // Check if right-click was on a link card
+                            const target = e.target as HTMLElement;
+                            const linkCard = target.closest('a[href]');
+                            if (!linkCard) {
+                                // Right-click was on empty space
+                                let x = e.clientX;
+                                let y = e.clientY;
+                                if (x + 200 > window.innerWidth) x = window.innerWidth - 210;
+                                if (y + 180 > window.innerHeight) y = window.innerHeight - 190;
+                                setCategorySectionMenu({ x, y, categoryId: cat.id });
+                            }
+                        }}
+                    >
                         <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
                              <div className="flex items-center gap-2">
                                 <div className="text-slate-400">

@@ -2,9 +2,31 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="https://lucide.dev/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>云航 CloudNav</title>
+    <script>
+      window.__CLOUDNAV_INITIAL_DATA__ = (function() {
+        var defaultSettings = {
+          title: 'CloudNav - 我的导航',
+          navTitle: '云航 CloudNav',
+          favicon: '',
+          cardStyle: 'detailed'
+        };
+        var customSettings = null;
+        try {
+          var stored = localStorage.getItem('cloudnav_data_cache');
+          if (stored) {
+            var data = JSON.parse(stored);
+            customSettings = data.settings || null;
+          }
+        } catch (e) {}
+        var finalSettings = customSettings || defaultSettings;
+        document.title = finalSettings.title;
+        if (finalSettings.favicon) {
+          document.favicon = finalSettings.favicon;
+        }
+        return finalSettings;
+      })();
+    </script>
+    <title></title>
   <script type="importmap">
 {
   "imports": {
