@@ -508,15 +508,48 @@ function App() {
          closeAllMenus();
       };
 
+      // 全局禁用右键菜单（除了程序提供的特定区域）
+      const handleContextMenu = (e: MouseEvent) => {
+          const target = e.target as HTMLElement;
+          
+          // 检查是否在链接卡片上
+          const linkCard = target.closest('a[href]');
+          if (linkCard) return; // 允许链接右键菜单
+          
+          // 检查是否在分类空白区域
+          const sectionElement = target.closest('section');
+          if (sectionElement) {
+              const linkInSection = sectionElement.querySelector('a[href]');
+              if (!linkInSection) return; // 允许分类空白区域右键菜单
+          }
+          
+          // 检查是否在分类项上
+          const categoryItem = target.closest('[data-category-item]');
+          if (categoryItem) return; // 允许分类项右键菜单
+          
+          // 检查是否在侧边栏内（除了分类项）
+          const sidebarElement = target.closest('aside');
+          if (sidebarElement) {
+              const categoryItemInSidebar = target.closest('[data-category-item]');
+              const buttonElement = target.closest('button');
+              if (!categoryItemInSidebar && !buttonElement) return; // 允许侧边栏空白区域右键菜单
+          }
+          
+          // 其他所有区域禁用右键
+          e.preventDefault();
+      };
+
       // 任何点击（左键或右键）都关闭右键菜单
       window.addEventListener('click', handleClickOutside);
       window.addEventListener('mousedown', handleClickOutside);
       window.addEventListener('scroll', handleScroll, true);
+      window.addEventListener('contextmenu', handleContextMenu);
 
       return () => {
           window.removeEventListener('click', handleClickOutside);
           window.removeEventListener('mousedown', handleClickOutside);
           window.removeEventListener('scroll', handleScroll, true);
+          window.removeEventListener('contextmenu', handleContextMenu);
       }
   }, [openMenuId, contextMenu, categoryContextMenu, categorySectionMenu, showEngineSelector, isSortingCategory, isSortingLinks]);
 
