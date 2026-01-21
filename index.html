@@ -5,6 +5,27 @@
     <link rel="icon" type="image/svg+xml" href="https://lucide.dev/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>云航 CloudNav</title>
+    <script>
+      (function() {
+        try {
+          const stored = localStorage.getItem('cloudnav_data_cache');
+          if (stored) {
+            const data = JSON.parse(stored);
+            if (data.settings && data.settings.title) {
+              document.title = data.settings.title;
+            }
+            if (data.settings && data.settings.favicon) {
+              const link = document.querySelector("link[rel~='icon']");
+              if (link) {
+                link.href = data.settings.favicon;
+              }
+            }
+          }
+        } catch (e) {
+          // Ignore errors
+        }
+      })();
+    </script>
   <script type="importmap">
 {
   "imports": {
