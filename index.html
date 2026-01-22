@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
   <head>
+    <meta charset="UTF-8" />
+    <title></title>
     <script>
       (function() {
         var defaultSettings = {
@@ -18,24 +20,10 @@
           }
         } catch (e) {}
         var finalSettings = customSettings || defaultSettings;
-        // 立即设置页面标题，在title标签渲染之前
-        document.title = finalSettings.title;
-        // 保存初始数据供后续使用
+        // 保存初始数据供 React 使用，但不在这里设置标题，让 React 统一处理
         window.__CLOUDNAV_INITIAL_DATA__ = finalSettings;
-        // 设置favicon
-        if (finalSettings.favicon) {
-          var link = document.querySelector("link[rel~='icon']");
-          if (!link) {
-            link = document.createElement('link');
-            link.rel = 'icon';
-            document.head.appendChild(link);
-          }
-          link.href = finalSettings.favicon;
-        }
       })();
     </script>
-    <meta charset="UTF-8" />
-    <title></title>
   <script type="importmap">
 {
   "imports": {

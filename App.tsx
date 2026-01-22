@@ -80,6 +80,7 @@ function App() {
       cardStyle: 'detailed'
   };
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(initialSettings);
+  const titleInitializedRef = useRef(false);
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
@@ -390,8 +391,8 @@ function App() {
       setLinks(newLinks);
       setCategories(newCategories);
       setSiteSettings(newSettings);
-      // 立即更新标题
-      if (newSettings.title && newSettings.title !== document.title) {
+      // 立即更新标题（当用户修改标题时）
+      if (newSettings.title && document.title !== newSettings.title) {
           document.title = newSettings.title;
       }
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ links: newLinks, categories: newCategories, settings: newSettings }));
@@ -440,7 +441,7 @@ function App() {
                     if (data.settings) {
                         setSiteSettings(prev => ({ ...prev, ...data.settings }));
                         // 立即更新标题
-                        if (data.settings.title && data.settings.title !== document.title) {
+                        if (data.settings.title) {
                             document.title = data.settings.title;
                         }
                     }
@@ -458,12 +459,17 @@ function App() {
   }, []);
 
   useEffect(() => {
+      // 标题更新逻辑 - 仅在首次设置时执行，避免重复设置
+      if (!titleInitializedRef.current && siteSettings.title) {
+          document.title = siteSettings.title;
+          titleInitializedRef.current = true;
+      }
       // favicon 更新逻辑
       const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
       if (link && siteSettings.favicon && link.href !== siteSettings.favicon) {
           link.href = siteSettings.favicon;
       }
-  }, [siteSettings.favicon]);
+  }, [siteSettings.title, siteSettings.favicon]);
 
   useEffect(() => {
       // 关闭所有菜单的统一处理函数
@@ -727,8 +733,8 @@ function App() {
   const handleSaveAIConfig = (config: AIConfig, newSiteSettings: SiteSettings) => {
       setAiConfig(config);
       localStorage.setItem(AI_CONFIG_KEY, JSON.stringify(config));
-      // 立即更新标题
-      if (newSiteSettings.title && newSiteSettings.title !== document.title) {
+      // 立即更新标题（当用户修改标题时）
+      if (newSiteSettings.title && document.title !== newSiteSettings.title) {
           document.title = newSiteSettings.title;
       }
       if (authToken) {
