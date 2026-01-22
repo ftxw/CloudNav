@@ -14,15 +14,13 @@ const callWebDavProxy = async (operation: 'check' | 'upload' | 'download', confi
                 payload
             })
         });
-        
+
         if (!response.ok) {
-            console.error(`WebDAV Proxy Error: ${response.status}`);
             return null;
         }
-        
+
         return await response.json();
     } catch (e) {
-        console.error("WebDAV Proxy Network Error", e);
         return null;
     }
 }

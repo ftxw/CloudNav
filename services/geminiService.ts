@@ -37,15 +37,12 @@ const callOpenAICompatible = async (config: AIConfig, systemPrompt: string, user
         });
 
         if (!response.ok) {
-            const err = await response.text();
-            console.error("OpenAI API Error:", err);
             return "";
         }
 
         const data = await response.json();
         return data.choices?.[0]?.message?.content?.trim() || "";
     } catch (e) {
-        console.error("OpenAI Call Failed", e);
         return "";
     }
 };
@@ -85,7 +82,6 @@ export const generateLinkDescription = async (title: string, url: string, config
         return result || "生成描述失败";
     }
   } catch (error) {
-    console.error("AI generation error:", error);
     return "生成描述失败";
   }
 };
@@ -126,7 +122,6 @@ export const suggestCategory = async (title: string, url: string, categories: {i
             return result || null;
         }
     } catch (e) {
-        console.error(e);
         return null;
     }
 }

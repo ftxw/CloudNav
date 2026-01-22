@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { X, Save, Bot, Key, Globe, Sparkles, PauseCircle, Wrench, Box, Copy, Check, LayoutTemplate, RefreshCw, Info, Download, Sidebar, Keyboard, MousePointerClick, AlertTriangle, Package, Zap, Menu } from 'lucide-react';
+import { X, Save, Bot, Key, Globe, Sparkles, PauseCircle, Wrench, Copy, Check, LayoutTemplate, RefreshCw, Download, Sidebar, Keyboard, AlertTriangle, Package, Zap, Menu } from 'lucide-react';
 import { AIConfig, LinkItem, Category, SiteSettings } from '../types';
 import { generateLinkDescription } from '../services/geminiService';
 import JSZip from 'jszip';
@@ -46,7 +46,6 @@ const generateSvgIcon = (text: string, color1: string, color2: string) => {
         const encoded = window.btoa(unescape(encodeURIComponent(svg)));
         return `data:image/svg+xml;base64,${encoded}`;
     } catch (e) {
-        console.error("SVG Icon Generation Failed", e);
         return '';
     }
 };
@@ -159,7 +158,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             onUpdateLinks(currentLinks);
             setProgress({ current: i + 1, total: missingLinks.length });
         } catch (e) {
-            console.error(`Failed to generate for ${link.title}`, e);
         }
     }
 
@@ -297,7 +295,6 @@ chrome.action.onClicked.addListener(async (tab) => {
         try {
             await chrome.sidePanel.open({ windowId: windowId });
         } catch (e) {
-            console.error('Failed to open sidebar', e);
         }
     }
 });
@@ -545,7 +542,6 @@ try {
         }
     });
 } catch(e) {
-    console.error('Connection failed', e);
 }
 // ----------------------------------------
 
@@ -794,7 +790,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (iconBlob) {
             zip.file("icon.png", iconBlob);
         } else {
-            console.warn("Could not generate icon for zip");
             zip.file("icon_missing.txt", "Icon generation failed due to CORS. Please save the icon manually.");
         }
 
@@ -807,9 +802,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
-        
+
     } catch(e) {
-        console.error(e);
         alert("打包下载失败");
     } finally {
         setIsZipping(false);

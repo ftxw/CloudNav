@@ -40,10 +40,16 @@ export async function onRequest(context: { request: Request; env: Env }) {
       }
 
       const blob = await response.blob();
-      
+
       // 将图片转换为 base64
       const buffer = await blob.arrayBuffer();
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      const len = bytes.byteLength;
+      for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      const base64 = btoa(binary);
       const mimeType = blob.type || 'image/png';
       const dataUrl = `data:${mimeType};base64,${base64}`;
 

@@ -137,7 +137,6 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
         if (desc) setDescription(desc);
         if (cat) setCategoryId(cat);
     } catch (e) {
-        console.error("AI Assist failed", e);
     } finally {
         setIsGenerating(false);
     }

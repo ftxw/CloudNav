@@ -434,10 +434,8 @@ function App() {
   // 立即转换图标为 base64（用于添加/编辑链接时）
   const cacheIconForLink = async (iconUrl: string): Promise<string> => {
     try {
-      // 通过后端代理获取图标，避免 CORS 问题
       const response = await fetch(`/api/icon?url=${encodeURIComponent(iconUrl)}`);
       if (!response.ok) {
-        console.error('Failed to fetch icon:', response.status);
         return iconUrl;
       }
       const data = await response.json();
@@ -446,8 +444,7 @@ function App() {
       }
       return iconUrl;
     } catch (e) {
-      console.error('cacheIconForLink error:', e);
-      return iconUrl; // 失败时返回原始 URL
+      return iconUrl;
     }
   };
 
