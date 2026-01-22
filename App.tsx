@@ -358,6 +358,7 @@ function App() {
         setLinks(parsed.links || INITIAL_LINKS);
         setCategories(parsed.categories || DEFAULT_CATEGORIES);
         if (parsed.settings) setSiteSettings(prev => ({ ...prev, ...parsed.settings }));
+        if (parsed.iconCache) setIconCache(parsed.iconCache);
       } catch (e) {
         setLinks(INITIAL_LINKS);
         setCategories(DEFAULT_CATEGORIES);
@@ -467,6 +468,9 @@ function App() {
                     if (data.settings) {
                         setSiteSettings(prev => ({ ...prev, ...data.settings }));
                     }
+                    if (data.iconCache) {
+                        setIconCache(data.iconCache);
+                    }
                     setDataLoaded(true);
                     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
                     return;
@@ -490,6 +494,9 @@ function App() {
                     setCategories(data.categories || DEFAULT_CATEGORIES);
                     if (data.settings) {
                         setSiteSettings(prev => ({ ...prev, ...data.settings }));
+                    }
+                    if (data.iconCache) {
+                        setIconCache(data.iconCache);
                     }
                     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
                 }
@@ -715,6 +722,22 @@ function App() {
       alert(`成功导入 ${newLinks.length} 个新书签!`);
   };
 
+  // 缓存图标到云端的函数
+  const cacheIcon = async (linkId: string, iconUrl: string) => {
+    try {
+      const response = await fetch(iconUrl);
+      const blob = await response.blob();
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64data = reader.result as string;
+        setIconCache(prev => ({ ...prev, [linkId]: base64data }));
+      };
+      reader.readAsDataURL(blob);
+    } catch (e) {
+      console.error('Failed to cache icon:', e);
+    }
+  };
+
   const handleAddLink = (data: Omit<LinkItem, 'id' | 'createdAt'>) => {
     const newLink: LinkItem = {
       ...data,
@@ -728,6 +751,12 @@ function App() {
       }, -1);
       newLink.pinnedOrder = maxPinnedOrder + 1;
     }
+
+    // 缓存图标（如果是 favicon.org.cn 的 URL）
+    if (newLink.icon && newLink.icon.includes('favicon.org.cn')) {
+      cacheIcon(newLink.id, newLink.icon);
+    }
+
     updateData([newLink, ...links], categories);
     setPrefillLink(undefined);
   };
@@ -743,6 +772,10 @@ function App() {
                     return link.pinned && link.pinnedOrder !== undefined ? Math.max(max, link.pinnedOrder) : max;
                 }, -1);
                 newLink.pinnedOrder = maxPinnedOrder + 1;
+            }
+            // 缓存图标（如果是 favicon.org.cn 的 URL）
+            if (newLink.icon && newLink.icon.includes('favicon.org.cn')) {
+              cacheIcon(newLink.id, newLink.icon);
             }
             return newLink;
         }
@@ -761,6 +794,12 @@ function App() {
 
   const handleConfirmDeleteLink = () => {
     if (!deleteLinkConfirm) return;
+    // 从 iconCache 中移除对应的图标
+    setIconCache(prev => {
+      const newCache = { ...prev };
+      delete newCache[deleteLinkConfirm.id];
+      return newCache;
+    });
     updateData(links.filter(l => l.id !== deleteLinkConfirm.id), categories);
     setDeleteLinkConfirm(null);
   };
@@ -922,9 +961,11 @@ function App() {
           transition: isDragging ? 'none' : transition,
       };
 
-      const iconDisplay = link.icon ? (
+      // 优先使用 iconCache 中的 base64 图标，否则使用 link.icon
+      const iconSrc = iconCache[link.id] || link.icon;
+      const iconDisplay = iconSrc ? (
          <img
-            src={link.icon}
+            src={iconSrc}
             alt=""
             className="w-5 h-5 object-contain"
             onError={(e) => {
@@ -996,9 +1037,11 @@ function App() {
   // --- Render Components ---
 
   const renderLinkCard = (link: LinkItem) => {
-      const iconDisplay = link.icon ? (
+      // 优先使用 iconCache 中的 base64 图标，否则使用 link.icon
+      const iconSrc = iconCache[link.id] || link.icon;
+      const iconDisplay = iconSrc ? (
          <img
-            src={link.icon}
+            src={iconSrc}
             alt=""
             className="w-5 h-5 object-contain"
             onError={(e) => {
@@ -1847,9 +1890,11 @@ function App() {
                               {activeId ? (() => {
                                 const link = links.find(l => l.id === activeId);
                                 if (!link) return null;
-                                const iconDisplay = link.icon ? (
+                                // 优先使用 iconCache 中的 base64 图标，否则使用 link.icon
+                                const iconSrc = iconCache[link.id] || link.icon;
+                                const iconDisplay = iconSrc ? (
                                    <img
-                                      src={link.icon}
+                                      src={iconSrc}
                                       alt=""
                                       className="w-5 h-5 object-contain"
                                   />
@@ -1913,9 +1958,11 @@ function App() {
                               {activeId ? (() => {
                                 const link = links.find(l => l.id === activeId);
                                 if (!link) return null;
-                                const iconDisplay = link.icon ? (
+                                // 优先使用 iconCache 中的 base64 图标，否则使用 link.icon
+                                const iconSrc = iconCache[link.id] || link.icon;
+                                const iconDisplay = iconSrc ? (
                                    <img
-                                      src={link.icon}
+                                      src={iconSrc}
                                       alt=""
                                       className="w-5 h-5 object-contain"
                                   />
