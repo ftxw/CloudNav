@@ -825,6 +825,9 @@ function App() {
                   let y = e.clientY;
                   if (x + 200 > window.innerWidth) x = window.innerWidth - 210;
                   if (y + 250 > window.innerHeight) y = window.innerHeight - 260;
+                  // Close other context menus
+                  setContextMenu(null);
+                  setCategorySectionMenu(null);
                   setCategoryContextMenu({ x, y, category: cat });
               }}
               onClick={() => !isSorting && scrollToCategory(cat.id)}
@@ -958,10 +961,13 @@ function App() {
                 // Boundary adjustment
                 if (x + 180 > window.innerWidth) x = window.innerWidth - 190;
                 if (y + 220 > window.innerHeight) y = window.innerHeight - 230;
-                // 检查是否在置顶区域内右键
-                const target = e.currentTarget;
-                const inPinnedSection = target.closest('section')?.querySelector('h2')?.textContent?.includes('置顶 / 常用') ?? false;
-                setContextMenu({ x, y, link, inPinnedSection });
+                  // 检查是否在置顶区域内右键
+                    const target = e.currentTarget;
+                    const inPinnedSection = target.closest('section')?.querySelector('h2')?.textContent?.includes('置顶 / 常用') ?? false;
+                    // Close other context menus
+                    setCategoryContextMenu(null);
+                    setCategorySectionMenu(null);
+                    setContextMenu({ x, y, link, inPinnedSection });
                 return false;
             }}
             onMouseMove={(e) => {
@@ -1295,6 +1301,9 @@ function App() {
                   let y = e.clientY;
                   if (x + 200 > window.innerWidth) x = window.innerWidth - 210;
                   if (y + 250 > window.innerHeight) y = window.innerHeight - 260;
+                  // Close other context menus
+                  setContextMenu(null);
+                  setCategorySectionMenu(null);
                   setCategoryContextMenu({ x, y, category: null });
               }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
@@ -1564,6 +1573,9 @@ function App() {
                     const targetElement = e.target as HTMLElement;
                     const section = targetElement.closest('section');
                     const pinnedSection = section?.querySelector('h2')?.textContent?.includes('置顶 / 常用') ?? false;
+                    // Close other context menus
+                    setContextMenu(null);
+                    setCategoryContextMenu(null);
                     if (pinnedSection) {
                         setCategorySectionMenu({ x, y, categoryId: 'pinned' });
                     } else if (activeCategory === 'all') {
