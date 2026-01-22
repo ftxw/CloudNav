@@ -93,6 +93,7 @@ function App() {
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(initialSettings);
   const titleInitializedRef = useRef(false);
   const dataLoadedRef = useRef(false);
+  const [debugInfo, setDebugInfo] = useState({ titleInitialized: false, dataLoaded: false });
   const DEFAULT_TITLE = 'CloudNav - 我的导航';
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -457,6 +458,8 @@ function App() {
                         setSiteSettings(prev => ({ ...prev, ...data.settings }));
                     }
                     dataLoadedRef.current = true;
+                    setDebugInfo(prev => ({ ...prev, dataLoaded: true }));
+                    console.log('Data loaded from cloud, titleInitializedRef:', titleInitializedRef.current);
                     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
                     return;
                 }
@@ -467,12 +470,18 @@ function App() {
         console.log('Loading from local storage');
         loadFromLocal();
         dataLoadedRef.current = true;
+        setDebugInfo(prev => ({ ...prev, dataLoaded: true }));
     };
 
     initData();
   }, []);
 
   useEffect(() => {
+      console.log('Title effect triggered:', {
+          dataLoaded: dataLoadedRef.current,
+          titleInitialized: titleInitializedRef.current,
+          siteSettingsTitle: siteSettings.title
+      });
       // 标题更新逻辑 - 数据加载完成后设置标题
       // 如果标题为空，则使用默认标题
       if (dataLoadedRef.current && !titleInitializedRef.current) {
@@ -480,6 +489,7 @@ function App() {
           console.log('Setting title:', finalTitle, 'siteSettings.title:', siteSettings.title);
           document.title = finalTitle;
           titleInitializedRef.current = true;
+          setDebugInfo(prev => ({ ...prev, titleInitialized: true }));
       }
       // favicon 更新逻辑
       const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
