@@ -390,6 +390,10 @@ function App() {
       setLinks(newLinks);
       setCategories(newCategories);
       setSiteSettings(newSettings);
+      // 立即更新标题
+      if (newSettings.title && newSettings.title !== document.title) {
+          document.title = newSettings.title;
+      }
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ links: newLinks, categories: newCategories, settings: newSettings }));
       if (authToken) {
           syncToCloud(newLinks, newCategories, newSettings, authToken);
@@ -433,7 +437,13 @@ function App() {
                 if (data.links && data.links.length > 0) {
                     setLinks(data.links);
                     setCategories(data.categories || DEFAULT_CATEGORIES);
-                    if (data.settings) setSiteSettings(prev => ({ ...prev, ...data.settings }));
+                    if (data.settings) {
+                        setSiteSettings(prev => ({ ...prev, ...data.settings }));
+                        // 立即更新标题
+                        if (data.settings.title && data.settings.title !== document.title) {
+                            document.title = data.settings.title;
+                        }
+                    }
                     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
                     return;
                 }
