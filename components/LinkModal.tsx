@@ -18,12 +18,15 @@ interface LinkModalProps {
 const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categories, existingLinks, initialData, defaultCategoryId, aiConfig }) => {
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
-  const [iconUrl, setIconUrl] = useState('');
+  const [iconUrl, setIconUrl] = useState(''); // 输入框的值
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState(categories[0]?.id || 'common');
   const [pinned, setPinned] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState('');
+
+  // 预览图标：始终显示原有图标（编辑时）或当前 iconUrl（新添加/修改时）
+  const previewIcon = initialData && !iconUrl ? initialData.icon : iconUrl;
 
   useEffect(() => {
     if (isOpen) {
@@ -33,8 +36,8 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
         setDescription(initialData.description || '');
         setCategoryId(initialData.categoryId);
         setPinned(initialData.pinned || false);
-        // 直接使用链接的图标，不做任何转换
-        setIconUrl(initialData.icon || '');
+        // 编辑时图标 URL 输入框默认为空
+        setIconUrl('');
       } else {
         setTitle('');
         setUrl('');
@@ -91,7 +94,9 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    await onSave({ title, url, description, categoryId, pinned, icon: iconUrl });
+    // 编辑模式下，如果图标 URL 为空，则保留原有图标
+    const iconToSave = initialData && !iconUrl ? initialData.icon : iconUrl;
+    await onSave({ title, url, description, categoryId, pinned, icon: iconToSave });
     // 确保 onSave 完成后再关闭模态框
     requestAnimationFrame(() => {
       onClose();
@@ -174,23 +179,24 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
           <div>
              <label className="block text-sm font-medium mb-1 dark:text-slate-300">图标 URL</label>
              <div className="flex gap-2">
-                 {/* Preview - 与链接卡片上的图标状态同步，直接根据 iconUrl 显示 */}
-                 <div className="shrink-0 w-10 h-10 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 flex items-center justify-center overflow-hidden">
-                    {iconUrl ? (
+                 {/* Preview - 与链接卡片使用相同的显示逻辑 */}
+                 <div className="shrink-0 w-10 h-10 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold uppercase overflow-hidden">
+                    {previewIcon ? (
                          <img
-                            src={iconUrl}
+                            src={previewIcon}
                             alt=""
                             className="w-full h-full object-contain"
                             onError={(e) => {
-                                e.currentTarget.style.display='none';
+                                e.currentTarget.style.display = 'none';
+                                e.currentTarget.parentElement!.innerText = title.charAt(0);
                             }}
                          />
                     ) : (
-                        <ImageIcon size={18} className="text-slate-400"/>
+                        title.charAt(0)
                     )}
                  </div>
 
-                 {/* Input */}
+                 {/* Input - 编辑时默认为空 */}
                  <input
                     type="text"
                     value={iconUrl}
