@@ -448,6 +448,7 @@ function App() {
             const res = await fetch('/api/storage');
             if (res.ok) {
                 const data = await res.json();
+                console.log('Cloud data loaded:', data);
                 // 只要有数据（links 或 settings）就使用云端数据
                 if (data && (data.links || data.settings)) {
                     setLinks(data.links || INITIAL_LINKS);
@@ -463,6 +464,7 @@ function App() {
         } catch (e) {
             console.warn("Failed to fetch from cloud, falling back to local.", e);
         }
+        console.log('Loading from local storage');
         loadFromLocal();
         dataLoadedRef.current = true;
     };
@@ -475,6 +477,7 @@ function App() {
       // 如果标题为空，则使用默认标题
       if (dataLoadedRef.current && !titleInitializedRef.current) {
           const finalTitle = siteSettings.title || DEFAULT_TITLE;
+          console.log('Setting title:', finalTitle, 'siteSettings.title:', siteSettings.title);
           document.title = finalTitle;
           titleInitializedRef.current = true;
       }
