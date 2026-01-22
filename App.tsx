@@ -1724,7 +1724,8 @@ function App() {
                         // Extract category ID from section id (cat-{categoryId})
                         const categoryId = section.id.replace('cat-', '');
                         setCategorySectionMenu({ x, y, categoryId });
-                    } else if (activeCategory !== 'all') {
+                    } else if (activeCategory !== 'all' && !section) {
+                        // Right-click on empty space but not in any section, use active category
                         setCategorySectionMenu({ x, y, categoryId: activeCategory });
                     }
                 }
