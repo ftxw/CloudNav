@@ -11,6 +11,10 @@ export interface LinkItem {
   pinnedOrder?: number; // Order in pinned section
 }
 
+export interface IconData {
+  [linkId: string]: string; // linkId -> base64 icon data
+}
+
 export interface Category {
   id: string;
   name: string;

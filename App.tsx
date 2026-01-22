@@ -92,6 +92,7 @@ function App() {
   const initialSettings = (typeof window !== 'undefined' && (window as any).__CLOUDNAV_INITIAL_DATA__) || getInitialSettings();
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(initialSettings);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [iconCache, setIconCache] = useState<{ [linkId: string]: string }>({});
   const DEFAULT_TITLE = 'CloudNav - 我的导航';
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -407,7 +408,7 @@ function App() {
       if (newSettings.title && document.title !== newSettings.title) {
           document.title = newSettings.title;
       }
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ links: newLinks, categories: newCategories, settings: newSettings }));
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ links: newLinks, categories: newCategories, settings: newSettings, iconCache }));
       if (authToken) {
           syncToCloud(newLinks, newCategories, newSettings, authToken);
       }

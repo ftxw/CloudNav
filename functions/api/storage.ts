@@ -3,6 +3,14 @@ interface Env {
   PASSWORD: string;
 }
 
+// 数据结构
+interface AppData {
+  links: any[];
+  categories: any[];
+  settings?: any;
+  iconCache?: { [linkId: string]: string }; // 图标缓存：linkId -> base64 icon data
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -42,6 +50,8 @@ export async function onRequest(context: { request: Request; env: Env }) {
     try {
       const kv = getKVStorage(env);
       let data = null;
+      let iconCache = null;
+
       if (kv) {
         try {
           data = await kv.get('app_data', 'json');
@@ -53,6 +63,18 @@ export async function onRequest(context: { request: Request; env: Env }) {
             } catch (parseErr) {
               // Keep as is if parse fails
             }
+          }
+        }
+
+        // 获取图标缓存
+        try {
+          iconCache = await kv.get('icon_cache', 'json');
+        } catch (e) {
+          const iconCacheStr = await kv.get('icon_cache');
+          if (iconCacheStr && typeof iconCacheStr === 'string') {
+            try {
+              iconCache = JSON.parse(iconCacheStr);
+            } catch (parseErr) {}
           }
         }
       }
@@ -67,10 +89,18 @@ export async function onRequest(context: { request: Request; env: Env }) {
             navTitle: '云航 CloudNav',
             favicon: '',
             cardStyle: 'detailed'
-          }
+          },
+          iconCache: {}
         }), {
           headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
+      }
+
+      // 将图标缓存添加到响应中
+      if (iconCache) {
+        (data as any).iconCache = iconCache;
+      } else {
+        (data as any).iconCache = {};
       }
 
       return new Response(JSON.stringify(data), {
@@ -114,6 +144,12 @@ export async function onRequest(context: { request: Request; env: Env }) {
           status: 500,
           headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
+      }
+
+      // 保存图标缓存到单独的 KV 键
+      if (body.iconCache) {
+        await kv.put('icon_cache', JSON.stringify(body.iconCache));
+        delete body.iconCache; // 从主数据中移除，减少数据大小
       }
 
       await kv.put('app_data', JSON.stringify(body));
