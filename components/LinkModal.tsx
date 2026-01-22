@@ -34,12 +34,17 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
       if (initialData) {
         setTitle(initialData.title);
         setUrl(initialData.url);
-        setIconUrl(initialData.icon || '');
         setDescription(initialData.description || '');
         setCategoryId(initialData.categoryId);
         setPinned(initialData.pinned || false);
-        // Default to true even for edits, allowing user to opt-out manually
-        setAutoFetchIcon(true);
+        // Check if icon uses old API format (direct favicon.ico) and auto-fetch new icon
+        if (initialData.icon && !initialData.icon.includes('favicon.org.cn')) {
+            setIconUrl(''); // Clear old icon
+            setAutoFetchIcon(false); // Will not auto-fetch to avoid clearing user's manual icon
+        } else {
+            setIconUrl(initialData.icon);
+            setAutoFetchIcon(true);
+        }
       } else {
         setTitle('');
         setUrl('');
@@ -52,6 +57,13 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
       setDuplicateWarning('');
     }
   }, [isOpen, initialData, defaultCategoryId, categories]);
+
+  // Auto-fetch icon when url changes in edit mode if using old icon format
+  useEffect(() => {
+    if (isOpen && initialData && autoFetchIcon && url && initialData.icon && !initialData.icon.includes('favicon.org.cn')) {
+        fetchIconFromUrl(url);
+    }
+  }, [isOpen, url, autoFetchIcon, initialData]);
 
   // Logic to fetch icon
   const fetchIconFromUrl = (targetUrl: string) => {
