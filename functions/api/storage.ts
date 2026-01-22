@@ -58,7 +58,17 @@ export async function onRequest(context: { request: Request; env: Env }) {
       }
 
       if (!data) {
-        return new Response(JSON.stringify({ links: [], categories: [] }), {
+        // 返回默认数据，包括默认标题
+        return new Response(JSON.stringify({
+          links: [],
+          categories: [],
+          settings: {
+            title: 'CloudNav - 我的导航',
+            navTitle: '云航 CloudNav',
+            favicon: '',
+            cardStyle: 'detailed'
+          }
+        }), {
           headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
       }

@@ -5,8 +5,8 @@
     <title></title>
     <script>
       (function() {
-        var defaultSettings = {
-          title: 'CloudNav - 我的导航',
+        var initialSettings = {
+          title: '',
           navTitle: '云航 CloudNav',
           favicon: '',
           cardStyle: 'detailed'
@@ -19,8 +19,8 @@
             customSettings = data.settings || null;
           }
         } catch (e) {}
-        var finalSettings = customSettings || defaultSettings;
-        // 保存初始数据供 React 使用，但不在这里设置标题，让 React 统一处理
+        var finalSettings = customSettings ? { ...initialSettings, ...customSettings } : initialSettings;
+        // 保存初始数据供 React 使用
         window.__CLOUDNAV_INITIAL_DATA__ = finalSettings;
       })();
     </script>

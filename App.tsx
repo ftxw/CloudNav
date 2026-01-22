@@ -72,10 +72,10 @@ function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Site Settings - 从 localStorage 读取初始数据，如果没有则使用默认值
+  // Site Settings - 从 localStorage 读取初始数据，如果没有则使用空值（标题由云端或 localStorage 提供）
   const getInitialSettings = (): SiteSettings => {
-      const defaultSettings = {
-          title: 'CloudNav - 我的导航',
+      const initialSettings = {
+          title: '',
           navTitle: '云航 CloudNav',
           favicon: '',
           cardStyle: 'detailed'
@@ -84,14 +84,16 @@ function App() {
           const stored = localStorage.getItem('cloudnav_data_cache');
           if (stored) {
               const data = JSON.parse(stored);
-              return { ...defaultSettings, ...(data.settings || {}) };
+              return { ...initialSettings, ...(data.settings || {}) };
           }
       } catch (e) {}
-      return defaultSettings;
+      return initialSettings;
   };
   const initialSettings = (typeof window !== 'undefined' && (window as any).__CLOUDNAV_INITIAL_DATA__) || getInitialSettings();
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(initialSettings);
   const titleInitializedRef = useRef(false);
+  const dataLoadedRef = useRef(false);
+  const DEFAULT_TITLE = 'CloudNav - 我的导航';
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
@@ -468,9 +470,9 @@ function App() {
   }, []);
 
   useEffect(() => {
-      // 标题更新逻辑 - 当 title 有值（非空）时立即设置，无需等待 dataLoadedRef
-      if (!titleInitializedRef.current) {
-          // 初始标题设置：使用实际设置的标题，如果为空则使用默认标题
+      // 标题更新逻辑 - 数据加载完成后设置标题
+      // 如果标题为空，则使用默认标题
+      if (dataLoadedRef.current && !titleInitializedRef.current) {
           const finalTitle = siteSettings.title || DEFAULT_TITLE;
           document.title = finalTitle;
           titleInitializedRef.current = true;
