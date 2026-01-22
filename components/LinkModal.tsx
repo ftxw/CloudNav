@@ -112,10 +112,13 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
       }
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSave({ title, url, description, categoryId, pinned, icon: iconUrl });
-    onClose();
+    await onSave({ title, url, description, categoryId, pinned, icon: iconUrl });
+    // 确保 onSave 完成后再关闭模态框
+    requestAnimationFrame(() => {
+      onClose();
+    });
   };
 
   const handleAIAssist = async () => {

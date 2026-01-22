@@ -515,14 +515,22 @@ function App() {
   };
 
   const updateData = (newLinks: LinkItem[], newCategories: Category[], newSettings: SiteSettings = siteSettings) => {
+      // 立即更新状态，确保 UI 响应
       setLinks(newLinks);
       setCategories(newCategories);
       setSiteSettings(newSettings);
+
       // 立即更新标题（当用户修改标题时）
       if (newSettings.title && document.title !== newSettings.title) {
           document.title = newSettings.title;
       }
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ links: newLinks, categories: newCategories, settings: newSettings }));
+
+      // 异步更新 localStorage，不阻塞 UI
+      requestAnimationFrame(() => {
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ links: newLinks, categories: newCategories, settings: newSettings }));
+      });
+
+      // 异步同步到云端，不阻塞 UI
       if (authToken) {
           syncToCloud(newLinks, newCategories, newSettings, authToken);
       }
