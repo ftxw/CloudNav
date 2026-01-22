@@ -7,8 +7,8 @@ export interface LinkItem {
   description?: string;
   categoryId: string;
   createdAt: number;
-  pinned?: boolean; // New field for pinning
-  pinnedOrder?: number; // Order in pinned section
+  pinned?: boolean;
+  pinnedOrder?: number;
 }
 
 export interface Category {
@@ -23,13 +23,6 @@ export interface SiteSettings {
   navTitle: string;
   favicon: string;
   cardStyle: 'detailed' | 'simple';
-}
-
-export interface AppState {
-  links: LinkItem[];
-  categories: Category[];
-  darkMode: boolean;
-  settings?: SiteSettings;
 }
 
 export interface WebDavConfig {

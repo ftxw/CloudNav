@@ -93,7 +93,6 @@ const ImportModal: React.FC<ImportModalProps> = ({
         setStep('preview');
     } catch (error) {
         alert("解析文件失败，请确保是标准的 Chrome HTML 书签文件。");
-        console.error(error);
     } finally {
         setAnalyzing(false);
     }

@@ -46,8 +46,25 @@ const AUTH_KEY = 'cloudnav_auth_token';
 const WEBDAV_CONFIG_KEY = 'cloudnav_webdav_config';
 const AI_CONFIG_KEY = 'cloudnav_ai_config';
 const SEARCH_ENGINES_KEY = 'cloudnav_search_engines';
+const ICON_CACHE_KEY = 'cloudnav_icon_cache';
 
 function App() {
+  // --- 可复用的样式对象 ---
+  const cardStyles = {
+    simple: 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10',
+    detailed: 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'
+  };
+
+  const iconSizeStyles = {
+    simple: 'w-6 h-6 text-xs',
+    detailed: 'w-8 h-8 text-sm'
+  };
+
+  const paddingStyles = {
+    simple: 'p-2',
+    detailed: 'p-3'
+  };
+
   // --- State ---
   const [links, setLinks] = useState<LinkItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -71,15 +88,44 @@ function App() {
 
   const [darkMode, setDarkMode] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  
-  // Site Settings - Use global initial data if available
-  const initialSettings = (typeof window !== 'undefined' && (window as any).__CLOUDNAV_INITIAL_DATA__) || {
-      title: 'CloudNav - 我的导航',
-      navTitle: '云航 CloudNav',
-      favicon: '',
-      cardStyle: 'detailed'
+
+  // Site Settings - 从 localStorage 读取初始数据，如果没有则使用空值（标题由云端或 localStorage 提供）
+  const getInitialSettings = (): SiteSettings => {
+      const initialSettings = {
+          title: '',
+          navTitle: '云航 CloudNav',
+          favicon: '',
+          cardStyle: 'detailed'
+      };
+      try {
+          const stored = localStorage.getItem('cloudnav_data_cache');
+          if (stored) {
+              const data = JSON.parse(stored);
+              return { ...initialSettings, ...(data.settings || {}) };
+          }
+      } catch (e) {}
+      return initialSettings;
   };
+  const initialSettings = (typeof window !== 'undefined' && (window as any).__CLOUDNAV_INITIAL_DATA__) || getInitialSettings();
+
+  // 立即设置标题和 favicon，不等待数据加载
+  if (typeof window !== 'undefined') {
+      const cachedTitle = initialSettings.title;
+      if (cachedTitle && document.title !== cachedTitle) {
+          document.title = cachedTitle;
+      }
+      const cachedFavicon = initialSettings.favicon;
+      if (cachedFavicon) {
+          const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+          if (link && link.href !== cachedFavicon) {
+              link.href = cachedFavicon;
+          }
+      }
+  }
+
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(initialSettings);
+  const [dataLoaded, setDataLoaded] = useState(false);
+  const DEFAULT_TITLE = 'CloudNav - 我的导航';
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
@@ -341,7 +387,15 @@ function App() {
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        setLinks(parsed.links || INITIAL_LINKS);
+        const linksData = parsed.links || INITIAL_LINKS;
+        // 从本地图标缓存合并图标
+        const iconCache = JSON.parse(localStorage.getItem(ICON_CACHE_KEY) || '{}');
+        const linksWithCachedIcons = linksData.map(link => ({
+          ...link,
+          // 如果本地缓存有这个链接的图标，使用缓存的
+          icon: iconCache[link.id] || link.icon
+        }));
+        setLinks(linksWithCachedIcons);
         setCategories(parsed.categories || DEFAULT_CATEGORIES);
         if (parsed.settings) setSiteSettings(prev => ({ ...prev, ...parsed.settings }));
       } catch (e) {
@@ -352,6 +406,94 @@ function App() {
       setLinks(INITIAL_LINKS);
       setCategories(DEFAULT_CATEGORIES);
     }
+  };
+
+  // 缓存图标并更新到 links 中的 icon 字段
+  const cacheIcon = async (linkId: string, iconUrl: string): Promise<string | null> => {
+    try {
+      const response = await fetch(iconUrl);
+      const blob = await response.blob();
+      const reader = new FileReader();
+      return new Promise((resolve) => {
+        reader.onloadend = () => {
+          const base64data = reader.result as string;
+          // 更新 link 的 icon 字段为 base64 数据
+          const updatedLinks = links.map(l => l.id === linkId ? { ...l, icon: base64data } : l);
+          setLinks(updatedLinks);
+          updateData(updatedLinks, categories);
+          resolve(base64data);
+        };
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    } catch (e) {
+      return null;
+    }
+  };
+
+  // 立即转换图标为 base64（用于添加/编辑链接时）
+  const cacheIconForLink = async (iconUrl: string): Promise<string> => {
+    try {
+      const response = await fetch(`/api/icon?url=${encodeURIComponent(iconUrl)}`);
+      if (!response.ok) {
+        return iconUrl;
+      }
+      const data = await response.json();
+      if (data.dataUrl) {
+        return data.dataUrl;
+      }
+      return iconUrl;
+    } catch (e) {
+      return iconUrl;
+    }
+  };
+
+  // 批量缓存缺失的图标
+  const cacheMissingIcons = async (linksToCache: LinkItem[]) => {
+    const iconCache = JSON.parse(localStorage.getItem(ICON_CACHE_KEY) || '{}');
+    let hasUpdates = false;
+
+    for (const link of linksToCache) {
+      if (link.icon && link.icon.includes('favicon.org.cn')) {
+        await new Promise(resolve => setTimeout(resolve, 300)); // 增加延迟避免请求过快
+        const base64data = await cacheIconForLink(link.icon);
+        if (base64data !== link.icon) {
+          // 更新本地图标缓存
+          iconCache[link.id] = base64data;
+          hasUpdates = true;
+        }
+      }
+    }
+
+    // 如果有更新，保存图标缓存并更新显示
+    if (hasUpdates) {
+      localStorage.setItem(ICON_CACHE_KEY, JSON.stringify(iconCache));
+      // 合并图标到 links
+      const updatedLinks = links.map(link => ({
+        ...link,
+        icon: iconCache[link.id] || link.icon
+      }));
+      setLinks(updatedLinks);
+    }
+  };
+
+  // 提取链接图标的可复用函数
+  const getLinkIconDisplay = (link: LinkItem) => {
+    const iconSrc = link.icon;
+    if (iconSrc) {
+      return (
+        <img
+          src={iconSrc}
+          alt=""
+          className="w-5 h-5 object-contain"
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+            e.currentTarget.parentElement!.innerText = link.title.charAt(0);
+          }}
+        />
+      );
+    }
+    return link.title.charAt(0);
   };
 
   const syncToCloud = async (newLinks: LinkItem[], newCategories: Category[], newSettings: SiteSettings, token: string) => {
@@ -375,22 +517,33 @@ function App() {
         }
 
         if (!response.ok) throw new Error('Network response was not ok');
-        
+
         setSyncStatus('saved');
         setTimeout(() => setSyncStatus('idle'), 2000);
         return true;
     } catch (error) {
-        console.error("Sync failed", error);
         setSyncStatus('error');
         return false;
     }
   };
 
   const updateData = (newLinks: LinkItem[], newCategories: Category[], newSettings: SiteSettings = siteSettings) => {
+      // 立即更新状态，确保 UI 响应
       setLinks(newLinks);
       setCategories(newCategories);
       setSiteSettings(newSettings);
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ links: newLinks, categories: newCategories, settings: newSettings }));
+
+      // 立即更新标题（当用户修改标题时）
+      if (newSettings.title && document.title !== newSettings.title) {
+          document.title = newSettings.title;
+      }
+
+      // 异步更新 localStorage，不阻塞 UI
+      requestAnimationFrame(() => {
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ links: newLinks, categories: newCategories, settings: newSettings }));
+      });
+
+      // 异步同步到云端，不阻塞 UI
       if (authToken) {
           syncToCloud(newLinks, newCategories, newSettings, authToken);
       }
@@ -426,37 +579,99 @@ function App() {
     }
 
     const initData = async () => {
+        // 先检查本地是否有数据
+        const hasLocalData = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (hasLocalData) {
+            loadFromLocal();
+            setDataLoaded(true);
+            // 本地有数据，不从云端读取，直接完成
+            return;
+        }
+
+        // 本地没有数据，从云端加载
         try {
             const res = await fetch('/api/storage');
             if (res.ok) {
                 const data = await res.json();
-                if (data.links && data.links.length > 0) {
-                    setLinks(data.links);
+                // 只要有数据（links 或 settings）就使用云端数据
+                if (data && (data.links || data.settings)) {
+                    setLinks(data.links || INITIAL_LINKS);
                     setCategories(data.categories || DEFAULT_CATEGORIES);
-                    if (data.settings) setSiteSettings(prev => ({ ...prev, ...data.settings }));
+                    if (data.settings) {
+                        setSiteSettings(prev => ({ ...prev, ...data.settings }));
+                    }
+                    setDataLoaded(true);
                     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+                    // 缓存缺失的图标
+                    cacheMissingIcons(data.links || INITIAL_LINKS);
                     return;
                 }
-            } 
+            }
         } catch (e) {
-            console.warn("Failed to fetch from cloud, falling back to local.", e);
+            // Ignore errors silently
         }
         loadFromLocal();
+        setDataLoaded(true);
+    };
+
+    // 后台同步云端数据（仅在首次加载时使用）
+    const syncFromCloudInBackground = async () => {
+        try {
+            const res = await fetch('/api/storage');
+            if (res.ok) {
+                const data = await res.json();
+                if (data && (data.links || data.settings)) {
+                    // 从云端获取数据后，合并本地图标缓存
+                    const iconCache = JSON.parse(localStorage.getItem(ICON_CACHE_KEY) || '{}');
+                    const linksWithCachedIcons = (data.links || INITIAL_LINKS).map(link => ({
+                      ...link,
+                      icon: iconCache[link.id] || link.icon
+                    }));
+
+                    setLinks(linksWithCachedIcons);
+                    setCategories(data.categories || DEFAULT_CATEGORIES);
+                    if (data.settings) {
+                        setSiteSettings(prev => ({ ...prev, ...data.settings }));
+                    }
+                    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+                    // 缓存缺失的图标
+                    cacheMissingIcons(linksWithCachedIcons);
+                }
+            }
+        } catch (e) {
+            // Ignore errors silently
+        }
     };
 
     initData();
   }, []);
 
   useEffect(() => {
-      // 标题已在 HTML 中初始化，这里仅在设置变更时更新
-      if (siteSettings.title && document.title !== siteSettings.title) {
-          document.title = siteSettings.title;
+      // 标题更新逻辑 - 数据加载完成后设置标题
+      if (dataLoaded) {
+          const finalTitle = siteSettings.title || DEFAULT_TITLE;
+          if (document.title !== finalTitle) {
+              document.title = finalTitle;
+          }
       }
+      // favicon 更新逻辑
       const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
       if (link && siteSettings.favicon && link.href !== siteSettings.favicon) {
           link.href = siteSettings.favicon;
       }
-  }, [siteSettings]);
+  }, [siteSettings.title, siteSettings.favicon, dataLoaded]);
+
+  // 数据加载完成后，自动缓存缺失的图标
+  useEffect(() => {
+      if (dataLoaded && links.length > 0) {
+          const linksToCache = links.filter(l =>
+              l.icon && l.icon.includes('favicon.org.cn')
+          );
+          if (linksToCache.length > 0) {
+              cacheMissingIcons(linksToCache);
+          }
+      }
+  }, [dataLoaded, links]);
 
   useEffect(() => {
       // 关闭所有菜单的统一处理函数
@@ -562,13 +777,11 @@ function App() {
 
       // 任何点击（左键或右键）都关闭右键菜单
       window.addEventListener('click', handleClickOutside);
-      window.addEventListener('mousedown', handleClickOutside);
       window.addEventListener('scroll', handleScroll, true);
       window.addEventListener('contextmenu', handleContextMenu);
 
       return () => {
           window.removeEventListener('click', handleClickOutside);
-          window.removeEventListener('mousedown', handleClickOutside);
           window.removeEventListener('scroll', handleScroll, true);
           window.removeEventListener('contextmenu', handleContextMenu);
       }
@@ -658,7 +871,8 @@ function App() {
       alert(`成功导入 ${newLinks.length} 个新书签!`);
   };
 
-  const handleAddLink = (data: Omit<LinkItem, 'id' | 'createdAt'>) => {
+  const handleAddLink = async (data: Omit<LinkItem, 'id' | 'createdAt'>) => {
+    // 创建新链接，使用原始图标URL
     const newLink: LinkItem = {
       ...data,
       id: Date.now().toString(),
@@ -671,15 +885,54 @@ function App() {
       }, -1);
       newLink.pinnedOrder = maxPinnedOrder + 1;
     }
+
+    // 立即添加链接并显示
     updateData([newLink, ...links], categories);
     setPrefillLink(undefined);
+
+    // 后台异步转换图标（不阻塞UI，不触发重新渲染）
+    // 任何 http:// 或 https:// 开头的图标 URL 都转换为 base64
+    if (newLink.icon && (newLink.icon.startsWith('http://') || newLink.icon.startsWith('https://'))) {
+      cacheIconForLink(newLink.icon).then(base64data => {
+        if (base64data && base64data !== newLink.icon) {
+          // 只更新本地图标缓存，不更新 links 状态（避免闪烁）
+          requestAnimationFrame(() => {
+            const iconCache = JSON.parse(localStorage.getItem(ICON_CACHE_KEY) || '{}');
+            iconCache[newLink.id] = base64data;
+            localStorage.setItem(ICON_CACHE_KEY, JSON.stringify(iconCache));
+
+            // 异步更新主数据（包含图标数据）并同步到云端
+            const cachedData = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '{}');
+            const updatedCloudLinks = (cachedData.links || INITIAL_LINKS).map(l =>
+              l.id === newLink.id ? { ...l, icon: base64data } : l
+            );
+            const newData = { ...cachedData, links: updatedCloudLinks };
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newData));
+
+            // 触发一次静默的云端同步
+            if (authToken) {
+              syncToCloud(updatedCloudLinks, categories, siteSettings, authToken);
+            }
+          });
+        }
+      });
+    }
   };
 
-  const handleEditLink = (data: Omit<LinkItem, 'id' | 'createdAt'>) => {
+  const handleEditLink = async (data: Omit<LinkItem, 'id' | 'createdAt'>) => {
     if (!editingLink) return;
+
+    // 更新链接，保留原始的 base64 图标
+    const originalLink = links.find(l => l.id === editingLink.id);
     const updated = links.map(l => {
         if (l.id === editingLink.id) {
             const newLink = { ...l, ...data };
+
+            // 如果原始链接有 base64 图标，且编辑时没有修改图标字段，则保留原始图标
+            if (originalLink && originalLink.icon && originalLink.icon.startsWith('data:image') && !data.icon) {
+                newLink.icon = originalLink.icon;
+            }
+
             // 如果从未置顶变为置顶，设置初始 pinnedOrder
             if (newLink.pinned && l.pinnedOrder === undefined) {
                 const maxPinnedOrder = links.reduce((max, link) => {
@@ -693,6 +946,34 @@ function App() {
     });
     updateData(updated, categories);
     setEditingLink(undefined);
+
+    // 后台异步转换图标（不阻塞UI，不触发重新渲染）
+    // 任何 http:// 或 https:// 开头的图标 URL 都转换为 base64
+    if (data.icon && (data.icon.startsWith('http://') || data.icon.startsWith('https://'))) {
+      cacheIconForLink(data.icon).then(base64data => {
+        if (base64data && base64data !== data.icon) {
+          // 只更新本地图标缓存，不更新 links 状态（避免闪烁）
+          requestAnimationFrame(() => {
+            const iconCache = JSON.parse(localStorage.getItem(ICON_CACHE_KEY) || '{}');
+            iconCache[editingLink.id] = base64data;
+            localStorage.setItem(ICON_CACHE_KEY, JSON.stringify(iconCache));
+
+            // 异步更新主数据（包含图标数据）并同步到云端
+            const cachedData = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '{}');
+            const updatedCloudLinks = (cachedData.links || INITIAL_LINKS).map(l =>
+              l.id === editingLink.id ? { ...l, icon: base64data } : l
+            );
+            const newData = { ...cachedData, links: updatedCloudLinks };
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newData));
+
+            // 触发一次静默的云端同步
+            if (authToken) {
+              syncToCloud(updatedCloudLinks, categories, siteSettings, authToken);
+            }
+          });
+        }
+      });
+    }
   };
 
   const handleDeleteLink = (id: string) => {
@@ -722,6 +1003,17 @@ function App() {
   const handleSaveAIConfig = (config: AIConfig, newSiteSettings: SiteSettings) => {
       setAiConfig(config);
       localStorage.setItem(AI_CONFIG_KEY, JSON.stringify(config));
+      // 立即更新标题（当用户修改标题时）
+      if (newSiteSettings.title && document.title !== newSiteSettings.title) {
+          document.title = newSiteSettings.title;
+      }
+      // 立即更新 favicon（当用户修改 favicon 时）
+      if (newSiteSettings.favicon) {
+          const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+          if (link) {
+              link.href = newSiteSettings.favicon;
+          }
+      }
       if (authToken) {
           updateData(links, categories, newSiteSettings);
       } else {
@@ -827,6 +1119,9 @@ function App() {
                   let y = e.clientY;
                   if (x + 200 > window.innerWidth) x = window.innerWidth - 210;
                   if (y + 250 > window.innerHeight) y = window.innerHeight - 260;
+                  // Close other context menus
+                  setContextMenu(null);
+                  setCategorySectionMenu(null);
                   setCategoryContextMenu({ x, y, category: cat });
               }}
               onClick={() => !isSorting && scrollToCategory(cat.id)}
@@ -858,38 +1153,24 @@ function App() {
           transition: isDragging ? 'none' : transition,
       };
 
-      const iconDisplay = link.icon ? (
-         <img
-            src={link.icon}
-            alt=""
-            className="w-5 h-5 object-contain"
-            onError={(e) => {
-                e.currentTarget.style.display = 'none';
-                e.currentTarget.parentElement!.innerText = link.title.charAt(0);
-            }}
-         />
-      ) : link.title.charAt(0);
-
-      const isSimple = siteSettings.cardStyle === 'simple';
-
       return (
         <div
             ref={setNodeRef}
             style={style}
-            className={`relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-white dark:bg-slate-800 rounded-xl border ${isSorting ? 'cursor-move border-dashed border-blue-400 dark:border-blue-500' : 'border-slate-100 dark:border-slate-700/50'} shadow-sm ${isDragging ? 'opacity-0' : ''}`}
+            className={`relative flex flex-col ${paddingStyles[siteSettings.cardStyle]} bg-white dark:bg-slate-800 rounded-xl border ${isSorting ? 'cursor-move border-dashed border-blue-400 dark:border-blue-500' : 'border-slate-100 dark:border-slate-700/50'} shadow-sm ${isDragging ? 'opacity-0' : ''}`}
             title={link.description || link.url}
             {...attributes}
             {...listeners}
         >
-            <div className={`flex items-center gap-3 ${isSimple ? '' : 'mb-1.5'} pr-6`}>
-                <div className={`${isSimple ? 'w-6 h-6 text-xs' : 'w-8 h-8 text-sm'} rounded-lg bg-slate-50 dark:bg-slate-700 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold uppercase shrink-0 overflow-hidden`}>
-                    {iconDisplay}
+            <div className={`flex items-center gap-3 ${siteSettings.cardStyle === 'simple' ? '' : 'mb-1.5'} pr-6`}>
+                <div className={`${iconSizeStyles[siteSettings.cardStyle]} rounded-lg bg-slate-50 dark:bg-slate-700 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold uppercase shrink-0 overflow-hidden`}>
+                    {getLinkIconDisplay(link)}
                 </div>
                 <h3 className="font-medium text-sm text-slate-800 dark:text-slate-200 truncate flex-1">
                     {link.title}
                 </h3>
             </div>
-            {!isSimple && (
+            {siteSettings.cardStyle === 'detailed' && (
                 <div className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 h-4 w-full overflow-hidden">
                     {link.description || <span className="opacity-0">.</span>}
                 </div>
@@ -931,21 +1212,30 @@ function App() {
 
   // --- Render Components ---
 
+  const renderDragOverlayCard = (linkId: string) => {
+    const link = links.find(l => l.id === linkId);
+    if (!link) return null;
+    const isSimple = siteSettings.cardStyle === 'simple';
+    return (
+      <div className={`group relative flex flex-col ${paddingStyles[siteSettings.cardStyle]} bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-300 dark:border-blue-600 shadow-2xl pointer-events-none`}>
+        <div className={`flex items-center gap-3 ${isSimple ? '' : 'mb-1.5'} pr-6`}>
+          <div className={`${iconSizeStyles[siteSettings.cardStyle]} rounded-lg bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold uppercase shrink-0 overflow-hidden`}>
+            {getLinkIconDisplay(link)}
+          </div>
+          <h3 className="font-medium text-sm text-blue-600 dark:text-blue-400 truncate flex-1">
+            {link.title}
+          </h3>
+        </div>
+        {!isSimple && (
+          <div className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 h-4 w-full overflow-hidden">
+            {link.description || <span className="opacity-0">.</span>}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderLinkCard = (link: LinkItem) => {
-      const iconDisplay = link.icon ? (
-         <img
-            src={link.icon}
-            alt=""
-            className="w-5 h-5 object-contain"
-            onError={(e) => {
-                e.currentTarget.style.display = 'none';
-                e.currentTarget.parentElement!.innerText = link.title.charAt(0);
-            }}
-         />
-      ) : link.title.charAt(0);
-
-      const isSimple = siteSettings.cardStyle === 'simple';
-
       return (
         <a
             key={link.id}
@@ -957,13 +1247,13 @@ function App() {
                 e.stopPropagation();
                 let x = e.clientX;
                 let y = e.clientY;
-                // Boundary adjustment
                 if (x + 180 > window.innerWidth) x = window.innerWidth - 190;
                 if (y + 220 > window.innerHeight) y = window.innerHeight - 230;
-                // 检查是否在置顶区域内右键
-                const target = e.currentTarget;
-                const inPinnedSection = target.closest('section')?.querySelector('h2')?.textContent?.includes('置顶 / 常用') ?? false;
-                setContextMenu({ x, y, link, inPinnedSection });
+                    const target = e.currentTarget;
+                    const inPinnedSection = target.closest('section')?.querySelector('h2')?.textContent?.includes('置顶 / 常用') ?? false;
+                    setCategoryContextMenu(null);
+                    setCategorySectionMenu(null);
+                    setContextMenu({ x, y, link, inPinnedSection });
                 return false;
             }}
             onMouseMove={(e) => {
@@ -976,7 +1266,7 @@ function App() {
                     bg.style.setProperty('--pointer-y', y.toString());
                 }
             }}
-            className={`group relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700/50 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 overflow-hidden`}
+            className={`group relative flex flex-col ${paddingStyles[siteSettings.cardStyle]} bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700/50 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 overflow-hidden`}
             title={link.description || link.url}
         >
             {/* Blurred icon background on hover */}
@@ -995,15 +1285,15 @@ function App() {
                 </div>
             )}
             <div className="relative z-10">
-                <div className={`flex items-center gap-3 ${!isSimple && link.description ? 'mb-1.5' : ''} pr-8`}>
-                    <div className={`${isSimple ? 'w-6 h-6 text-xs' : 'w-8 h-8 text-sm'} rounded-lg bg-slate-50/80 dark:bg-slate-700/80 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold uppercase shrink-0 overflow-hidden backdrop-blur-sm`}>
-                        {iconDisplay}
+                <div className={`flex items-center gap-3 ${siteSettings.cardStyle === 'detailed' && link.description ? 'mb-1.5' : ''} pr-8`}>
+                    <div className={`${iconSizeStyles[siteSettings.cardStyle]} rounded-lg bg-slate-50/80 dark:bg-slate-700/80 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold uppercase shrink-0 overflow-hidden backdrop-blur-sm`}>
+                        {getLinkIconDisplay(link)}
                     </div>
                     <h3 className="font-medium text-sm text-slate-800 dark:text-slate-200 truncate flex-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                         {link.title}
                     </h3>
                 </div>
-                {!isSimple && link.description && (
+                {siteSettings.cardStyle === 'detailed' && link.description && (
                     <div className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 h-4 w-full overflow-hidden">
                         {link.description}
                     </div>
@@ -1046,6 +1336,7 @@ function App() {
       {/* Right Click Context Menu */}
       {contextMenu && (
           <div
+             key="context-menu"
              ref={contextMenuRef}
              className="fixed z-[9999] bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-100 dark:border-slate-600 w-44 py-2 flex flex-col animate-in fade-in zoom-in duration-100 overflow-hidden"
              style={{ top: contextMenu.y, left: contextMenu.x }}
@@ -1283,12 +1574,28 @@ function App() {
                     let y = e.clientY;
                     if (x + 200 > window.innerWidth) x = window.innerWidth - 210;
                     if (y + 180 > window.innerHeight) y = window.innerHeight - 190;
+                    // Close other context menus
+                    setContextMenu(null);
+                    setCategoryContextMenu(null);
                     setCategorySectionMenu({ x, y, categoryId: 'sidebar' });
                 }
             }}
         >
             <button
               onClick={() => scrollToCategory('all')}
+              onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (isSorting || categoryModalOpen) return;
+                  let x = e.clientX;
+                  let y = e.clientY;
+                  if (x + 200 > window.innerWidth) x = window.innerWidth - 210;
+                  if (y + 250 > window.innerHeight) y = window.innerHeight - 260;
+                  // Close other context menus
+                  setContextMenu(null);
+                  setCategorySectionMenu(null);
+                  setCategoryContextMenu({ x, y, category: null });
+              }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                 activeCategory === 'all'
                   ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-medium'
@@ -1397,6 +1704,7 @@ function App() {
       {/* Category Context Menu */}
       {categoryContextMenu && authToken && (
         <div
+          key="category-context-menu"
           ref={categoryContextMenuRef}
           className="fixed z-[9999] bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 w-48 py-2 flex flex-col animate-in fade-in zoom-in duration-100"
           style={{ top: categoryContextMenu.y, left: categoryContextMenu.x, position: 'fixed' }}
@@ -1417,34 +1725,39 @@ function App() {
             <Move size={16} className="text-slate-400"/>
             <span>排序</span>
           </button>
-          <button
-            onClick={() => handleRenameCategory(categoryContextMenu.category)}
-            className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-left"
-          >
-            <Edit2 size={16} className="text-slate-400"/>
-            <span>编辑</span>
-          </button>
-          <button
-            onClick={() => handleMergeCategory(categoryContextMenu.category)}
-            className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-left"
-          >
-            <Merge size={16} className="text-slate-400"/>
-            <span>合并</span>
-          </button>
-          <div className="h-px bg-slate-100 dark:bg-slate-700 my-1 mx-2"/>
-          <button
-            onClick={() => handleDeleteCategory(categoryContextMenu.category.id)}
-            className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-left"
-          >
-            <Trash2 size={16} />
-            <span>删除</span>
-          </button>
+          {categoryContextMenu.category && (
+            <>
+              <button
+                onClick={() => handleRenameCategory(categoryContextMenu.category)}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-left"
+              >
+                <Edit2 size={16} className="text-slate-400"/>
+                <span>编辑</span>
+              </button>
+              <button
+                onClick={() => handleMergeCategory(categoryContextMenu.category)}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-left"
+              >
+                <Merge size={16} className="text-slate-400"/>
+                <span>合并</span>
+              </button>
+              <div className="h-px bg-slate-100 dark:bg-slate-700 my-1 mx-2"/>
+              <button
+                onClick={() => handleDeleteCategory(categoryContextMenu.category.id)}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-left"
+              >
+                <Trash2 size={16} />
+                <span>删除</span>
+              </button>
+            </>
+          )}
         </div>
       )}
 
       {/* Category Section Context Menu (for empty space) */}
       {categorySectionMenu && authToken && (
         <div
+          key={`category-section-menu-${categorySectionMenu.categoryId}`}
           ref={categorySectionMenuRef}
           className="fixed z-[9999] bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 w-40 py-2 flex flex-col animate-in fade-in zoom-in duration-100"
           style={{ top: categorySectionMenu.y, left: categorySectionMenu.x, position: 'fixed' }}
@@ -1532,7 +1845,44 @@ function App() {
           ref={mainRef}
           className="flex-1 flex flex-col h-full bg-slate-50 dark:bg-slate-900 overflow-hidden relative"
       >
-        <div className="flex-1 overflow-y-auto scroll-smooth">
+        <div
+            className="flex-1 overflow-y-auto scroll-smooth"
+            onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                // Check if right-click was on a link card
+                const target = e.target as HTMLElement;
+                const linkCard = target.closest('a[href]');
+                if (!linkCard) {
+                    // Right-click was on empty space
+                    let x = e.clientX;
+                    let y = e.clientY;
+                    if (x + 160 > window.innerWidth) x = window.innerWidth - 170;
+                    // Adjust y position if menu would be cut off at bottom
+                    const menuHeight = 100; // Approximate menu height
+                    if (y + menuHeight > window.innerHeight) y = window.innerHeight - menuHeight - 10;
+                    // Determine if click is in pinned section or category section
+                    const targetElement = e.target as HTMLElement;
+                    const section = targetElement.closest('section');
+                    const pinnedSection = section?.querySelector('h2')?.textContent?.includes('置顶 / 常用') ?? false;
+                    // Close other context menus
+                    setContextMenu(null);
+                    setCategoryContextMenu(null);
+                    if (pinnedSection) {
+                        setCategorySectionMenu({ x, y, categoryId: 'pinned' });
+                    } else if (activeCategory === 'all') {
+                        // All links mode: use the section ID to determine which category
+                        if (section && section.id?.startsWith('cat-')) {
+                            const categoryId = section.id.replace('cat-', '');
+                            setCategorySectionMenu({ x, y, categoryId });
+                        }
+                    } else {
+                        // Single category mode: use the active category for all empty space
+                        setCategorySectionMenu({ x, y, categoryId: activeCategory });
+                    }
+                }
+            }}
+        >
         <header className="h-16 px-4 lg:px-8 flex items-center justify-between bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shrink-0">
           <div className="flex items-center gap-4 flex-1">
             <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 -ml-2 text-slate-600 dark:text-slate-300">
@@ -1688,28 +2038,6 @@ function App() {
 
         <div
             className="p-4 lg:p-8 space-y-8"
-            onContextMenu={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                // Check if right-click was on a link card
-                const target = e.target as HTMLElement;
-                const linkCard = target.closest('a[href]');
-                if (!linkCard) {
-                    // Right-click was on empty space
-                    let x = e.clientX;
-                    let y = e.clientY;
-                    if (x + 200 > window.innerWidth) x = window.innerWidth - 210;
-                    if (y + 180 > window.innerHeight) y = window.innerHeight - 190;
-                    // Determine if click is in pinned section or category section
-                    const targetElement = e.target as HTMLElement;
-                    const pinnedSection = targetElement.closest('section')?.querySelector('h2')?.textContent?.includes('置顶 / 常用') ?? false;
-                    if (pinnedSection) {
-                        setCategorySectionMenu({ x, y, categoryId: 'pinned' });
-                    } else if (activeCategory !== 'all') {
-                        setCategorySectionMenu({ x, y, categoryId: activeCategory });
-                    }
-                }
-            }}
         >
 
             {/* 全部链接模式：置顶链接在最顶部显示 */}
@@ -1734,44 +2062,16 @@ function App() {
                     {isSortingLinks === 'pinned' ? (
                         <DndContext sensors={sensors} onDragStart={handleLinkDragStart} onDragEnd={handleLinkDragEnd}>
                             <SortableContext items={pinnedLinks.map(l => l.id)} strategy={rectSortingStrategy}>
-                                <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
+                                <div className={`grid gap-3 ${cardStyles[siteSettings.cardStyle]}`}>
                                     {pinnedLinks.map(link => <SortableLinkCard key={link.id} link={link} isSorting={true} />)}
                                 </div>
                             </SortableContext>
                             <DragOverlay>
-                              {activeId ? (() => {
-                                const link = links.find(l => l.id === activeId);
-                                if (!link) return null;
-                                const iconDisplay = link.icon ? (
-                                   <img
-                                      src={link.icon}
-                                      alt=""
-                                      className="w-5 h-5 object-contain"
-                                  />
-                                ) : link.title.charAt(0);
-                                const isSimple = siteSettings.cardStyle === 'simple';
-                                return (
-                                  <div className={`group relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-300 dark:border-blue-600 shadow-2xl pointer-events-none`}>
-                                    <div className={`flex items-center gap-3 ${isSimple ? '' : 'mb-1.5'} pr-6`}>
-                                        <div className={`${isSimple ? 'w-6 h-6 text-xs' : 'w-8 h-8 text-sm'} rounded-lg bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold uppercase shrink-0 overflow-hidden`}>
-                                            {iconDisplay}
-                                        </div>
-                                        <h3 className="font-medium text-sm text-blue-600 dark:text-blue-400 truncate flex-1">
-                                            {link.title}
-                                        </h3>
-                                    </div>
-                                    {!isSimple && (
-                                        <div className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 h-4 w-full overflow-hidden">
-                                            {link.description || <span className="opacity-0">.</span>}
-                                        </div>
-                                    )}
-                                  </div>
-                                );
-                              })() : null}
+                              {activeId && renderDragOverlayCard(activeId)}
                             </DragOverlay>
                         </DndContext>
                     ) : (
-                        <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
+                        <div className={`grid gap-3 ${cardStyles[siteSettings.cardStyle]}`}>
                             {pinnedLinks.map(link => renderLinkCard(link))}
                         </div>
                     )}
@@ -1800,44 +2100,16 @@ function App() {
                     {isSortingLinks === 'pinned' ? (
                         <DndContext sensors={sensors} onDragStart={handleLinkDragStart} onDragEnd={handleLinkDragEnd}>
                             <SortableContext items={pinnedLinks.map(l => l.id)} strategy={rectSortingStrategy}>
-                                <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
+                                <div className={`grid gap-3 ${cardStyles[siteSettings.cardStyle]}`}>
                                     {pinnedLinks.map(link => <SortableLinkCard key={link.id} link={link} isSorting={true} />)}
                                 </div>
                             </SortableContext>
                             <DragOverlay>
-                              {activeId ? (() => {
-                                const link = links.find(l => l.id === activeId);
-                                if (!link) return null;
-                                const iconDisplay = link.icon ? (
-                                   <img
-                                      src={link.icon}
-                                      alt=""
-                                      className="w-5 h-5 object-contain"
-                                  />
-                                ) : link.title.charAt(0);
-                                const isSimple = siteSettings.cardStyle === 'simple';
-                                return (
-                                  <div className={`group relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-300 dark:border-blue-600 shadow-2xl pointer-events-none`}>
-                                    <div className={`flex items-center gap-3 ${isSimple ? '' : 'mb-1.5'} pr-6`}>
-                                        <div className={`${isSimple ? 'w-6 h-6 text-xs' : 'w-8 h-8 text-sm'} rounded-lg bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold uppercase shrink-0 overflow-hidden`}>
-                                            {iconDisplay}
-                                        </div>
-                                        <h3 className="font-medium text-sm text-blue-600 dark:text-blue-400 truncate flex-1">
-                                            {link.title}
-                                        </h3>
-                                    </div>
-                                    {!isSimple && (
-                                        <div className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 h-4 w-full overflow-hidden">
-                                            {link.description || <span className="opacity-0">.</span>}
-                                        </div>
-                                    )}
-                                  </div>
-                                );
-                              })() : null}
+                              {activeId && renderDragOverlayCard(activeId)}
                             </DragOverlay>
                         </DndContext>
                     ) : (
-                        <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
+                        <div className={`grid gap-3 ${cardStyles[siteSettings.cardStyle]}`}>
                             {pinnedLinks.map(link => renderLinkCard(link))}
                         </div>
                     )}
@@ -1901,45 +2173,23 @@ function App() {
                         ) : isSortingLinks === cat.id ? (
                                 <DndContext sensors={sensors} onDragStart={handleLinkDragStart} onDragEnd={handleLinkDragEnd}>
                                     <SortableContext items={catLinks.map(l => l.id)} strategy={rectSortingStrategy}>
-                                        <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
+                                        <div className={`grid gap-3 ${cardStyles[siteSettings.cardStyle]}`}>
                                             {catLinks.map(link => <SortableLinkCard key={link.id} link={link} isSorting={true} />)}
                                         </div>
                                     </SortableContext>
-                                    <DragOverlay>
-                                      {activeId ? (() => {
-                                        const link = links.find(l => l.id === activeId);
-                                        if (!link) return null;
-                                        const iconDisplay = link.icon ? (
-                                           <img
-                                              src={link.icon}
-                                              alt=""
-                                              className="w-5 h-5 object-contain"
-                                          />
-                                        ) : link.title.charAt(0);
-                                        const isSimple = siteSettings.cardStyle === 'simple';
-                                        return (
-                                          <div className={`group relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-300 dark:border-blue-600 shadow-2xl pointer-events-none`}>
-                                            <div className={`flex items-center gap-3 ${isSimple ? '' : 'mb-1.5'} pr-6`}>
-                                                <div className={`${isSimple ? 'w-6 h-6 text-xs' : 'w-8 h-8 text-sm'} rounded-lg bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold uppercase shrink-0 overflow-hidden`}>
-                                                    {iconDisplay}
-                                                </div>
-                                                <h3 className="font-medium text-sm text-blue-600 dark:text-blue-400 truncate flex-1">
-                                                    {link.title}
-                                                </h3>
-                                            </div>
-                                            {!isSimple && (
-                                                <div className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 h-4 w-full overflow-hidden">
-                                                    {link.description || <span className="opacity-0">.</span>}
-                                                </div>
-                                            )}
-                                          </div>
-                                        );
-                                      })() : null}
-                                    </DragOverlay>
+                            <DragOverlay>
+                              {activeId && renderDragOverlayCard(activeId)}
+                            </DragOverlay>
                                 </DndContext>
                             ) : (
-                             <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
-                                {catLinks.map(link => renderLinkCard(link))}
+                             <div className={`grid gap-3 ${catLinks.length === 0 ? '' : cardStyles[siteSettings.cardStyle]}`}>
+                                {catLinks.length === 0 ? (
+                                    <div className="text-center py-8 text-slate-400 text-sm">
+                                        暂无链接
+                                    </div>
+                                ) : (
+                                    catLinks.map(link => renderLinkCard(link))
+                                )}
                              </div>
                             )}
                     </section>

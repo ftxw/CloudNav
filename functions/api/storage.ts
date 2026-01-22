@@ -3,6 +3,13 @@ interface Env {
   PASSWORD: string;
 }
 
+// 数据结构
+interface AppData {
+  links: any[];
+  categories: any[];
+  settings?: any;
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -41,26 +48,46 @@ export async function onRequest(context: { request: Request; env: Env }) {
   if (request.method === 'GET') {
     try {
       const kv = getKVStorage(env);
-      let data = null;
-      if (kv) {
-        try {
-          data = await kv.get('app_data', 'json');
-        } catch (e) {
-          data = await kv.get('app_data');
-          if (data && typeof data === 'string') {
-            try {
-              data = JSON.parse(data);
-            } catch (parseErr) {
-              // Keep as is if parse fails
-            }
-          }
-        }
-      }
 
-      if (!data) {
-        return new Response(JSON.stringify({ links: [], categories: [] }), {
+      if (!kv) {
+        // 返回默认数据
+        return new Response(JSON.stringify({
+          links: [],
+          categories: [],
+          settings: {
+            title: 'CloudNav - 我的导航',
+            navTitle: '云航 CloudNav',
+            favicon: '',
+            cardStyle: 'detailed'
+          }
+        }), {
           headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
+      }
+
+      // 并行读取四个独立的键
+      const [linksData, categoriesData, settingsData, iconsData] = await Promise.all([
+        kv.get('app_data:links', 'json').catch(() => []),
+        kv.get('app_data:categories', 'json').catch(() => []),
+        kv.get('app_data:settings', 'json').catch(() => null),
+        kv.get('app_data:icons', 'json').catch(() => null)
+      ]);
+
+      const data: AppData = {
+        links: linksData || [],
+        categories: categoriesData || []
+      };
+
+      if (settingsData) {
+        data.settings = settingsData;
+      }
+
+      // 将图标数据合并到 links 中
+      if (iconsData && data.links) {
+        data.links = data.links.map(link => ({
+          ...link,
+          icon: iconsData[link.id] || link.icon
+        }));
       }
 
       return new Response(JSON.stringify(data), {
@@ -106,7 +133,25 @@ export async function onRequest(context: { request: Request; env: Env }) {
         });
       }
 
-      await kv.put('app_data', JSON.stringify(body));
+      // 提取图标数据（从 links 中分离出来）
+      const iconsData: Record<string, string> = {};
+      const linksWithoutIcons = (body.links || []).map((link: any) => {
+        const { icon, ...rest } = link;
+        // 如果是 base64 图标，存到 iconsData 中
+        if (icon && icon.startsWith('data:image')) {
+          iconsData[link.id] = icon;
+          return { ...rest, icon: '' }; // links 中保留空字符串或原始 URL
+        }
+        return link; // 非 base64 图标（如 API URL）保留原样
+      });
+
+      // 并行写入四个独立的键
+      await Promise.all([
+        kv.put('app_data:links', JSON.stringify(linksWithoutIcons)),
+        kv.put('app_data:categories', JSON.stringify(body.categories || [])),
+        body.settings ? kv.put('app_data:settings', JSON.stringify(body.settings)) : Promise.resolve(),
+        Object.keys(iconsData).length > 0 ? kv.put('app_data:icons', JSON.stringify(iconsData)) : Promise.resolve()
+      ]);
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { 'Content-Type': 'application/json', ...corsHeaders },

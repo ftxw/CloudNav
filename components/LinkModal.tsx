@@ -18,28 +18,26 @@ interface LinkModalProps {
 const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categories, existingLinks, initialData, defaultCategoryId, aiConfig }) => {
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
-  const [iconUrl, setIconUrl] = useState('');
+  const [iconUrl, setIconUrl] = useState(''); // 输入框的值
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState(categories[0]?.id || 'common');
   const [pinned, setPinned] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-
-  // New State for Icon Auto-fetch
-  const [autoFetchIcon, setAutoFetchIcon] = useState(true);
-
   const [duplicateWarning, setDuplicateWarning] = useState('');
+
+  // 预览图标：编辑时显示原有图标，添加时显示当前 iconUrl（如果有的话）
+  const previewIcon = initialData ? (iconUrl || initialData.icon) : iconUrl;
 
   useEffect(() => {
     if (isOpen) {
       if (initialData) {
         setTitle(initialData.title);
         setUrl(initialData.url);
-        setIconUrl(initialData.icon || '');
         setDescription(initialData.description || '');
         setCategoryId(initialData.categoryId);
         setPinned(initialData.pinned || false);
-        // Default to true even for edits, allowing user to opt-out manually
-        setAutoFetchIcon(true);
+        // 编辑时图标 URL 输入框默认为空
+        setIconUrl('');
       } else {
         setTitle('');
         setUrl('');
@@ -47,7 +45,6 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
         setDescription('');
         setCategoryId(defaultCategoryId || categories[0]?.id || 'common');
         setPinned(false);
-        setAutoFetchIcon(true);
       }
       setDuplicateWarning('');
     }
@@ -62,9 +59,8 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
             normalizedUrl = 'https://' + targetUrl;
         }
 
-        // Use favicon.ico directly
-        const urlObj = new URL(normalizedUrl);
-        const newIcon = `${urlObj.origin}/favicon.ico`;
+        // Use favicon.org.cn API
+        const newIcon = `https://favicon.org.cn/get.php?url=${encodeURIComponent(normalizedUrl)}&size=128&key=usr-09b4268ccbf0b297611dc1a02fde7f739eec7ac3`;
 
         setIconUrl(newIcon);
       } catch (e) {
@@ -74,14 +70,14 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
 
   const handleUrlBlur = () => {
       if (!url) return;
-      
+
       let normalizedUrl = url;
       if (!url.startsWith('http')) {
           normalizedUrl = 'https://' + url;
           setUrl(normalizedUrl);
       }
 
-      // 1. Check Duplicate
+      // Check Duplicate
       if (existingLinks && !initialData) {
           const exists = existingLinks.some(l => {
               const u1 = l.url.replace(/\/$/, '').toLowerCase();
@@ -94,17 +90,17 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
               setDuplicateWarning('');
           }
       }
-
-      // 2. Auto fetch icon if enabled
-      if (autoFetchIcon) {
-          fetchIconFromUrl(normalizedUrl);
-      }
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSave({ title, url, description, categoryId, pinned, icon: iconUrl });
-    onClose();
+    // 编辑模式下，如果图标 URL 为空，则保留原有图标
+    const iconToSave = initialData && !iconUrl ? initialData.icon : iconUrl;
+    await onSave({ title, url, description, categoryId, pinned, icon: iconToSave });
+    // 确保 onSave 完成后再关闭模态框
+    requestAnimationFrame(() => {
+      onClose();
+    });
   };
 
   const handleAIAssist = async () => {
@@ -123,7 +119,6 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
         if (desc) setDescription(desc);
         if (cat) setCategoryId(cat);
     } catch (e) {
-        console.error("AI Assist failed", e);
     } finally {
         setIsGenerating(false);
     }
@@ -180,28 +175,31 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
             />
           </div>
 
-          {/* Icon Section - Redesigned */}
+          {/* Icon Section */}
           <div>
              <label className="block text-sm font-medium mb-1 dark:text-slate-300">图标 URL</label>
              <div className="flex gap-2">
-                 {/* Preview */}
-                 <div className="shrink-0 w-10 h-10 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 flex items-center justify-center overflow-hidden">
-                    {iconUrl ? (
-                         <img 
-                            src={iconUrl} 
+                 {/* Preview - 添加时默认显示 Image 图标，编辑时与卡片图标保持一致 */}
+                 <div className="shrink-0 w-10 h-10 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold uppercase overflow-hidden">
+                    {previewIcon ? (
+                         <img
+                            src={previewIcon}
+                            alt=""
                             className="w-full h-full object-contain"
                             onError={(e) => {
-                                e.currentTarget.style.display='none';
-                                setIconUrl('');
+                                e.currentTarget.style.display = 'none';
+                                e.currentTarget.parentElement!.innerText = title.charAt(0);
                             }}
                          />
+                    ) : initialData ? (
+                        title.charAt(0)
                     ) : (
-                        <ImageIcon size={18} className="text-slate-400"/>
+                        <ImageIcon size={18} className="text-slate-400 dark:text-slate-500" />
                     )}
                  </div>
-                 
-                 {/* Input */}
-                 <input 
+
+                 {/* Input - 编辑时默认为空 */}
+                 <input
                     type="text"
                     value={iconUrl}
                     onChange={(e) => setIconUrl(e.target.value)}
@@ -217,20 +215,6 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
                  >
                     <Wand2 size={14} /> 获取图标
                  </button>
-             </div>
-             
-             {/* Checkbox */}
-             <div className="mt-2 flex items-center gap-2">
-                <input 
-                    type="checkbox" 
-                    id="autoFetch"
-                    checked={autoFetchIcon}
-                    onChange={(e) => setAutoFetchIcon(e.target.checked)}
-                    className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
-                />
-                <label htmlFor="autoFetch" className="text-sm text-slate-600 dark:text-slate-400 cursor-pointer select-none">
-                    自动获取 URL 链接的图标
-                </label>
              </div>
           </div>
 
