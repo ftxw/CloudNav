@@ -21,7 +21,13 @@
         var finalSettings = customSettings || defaultSettings;
         document.title = finalSettings.title;
         if (finalSettings.favicon) {
-          document.favicon = finalSettings.favicon;
+          var link = document.querySelector("link[rel~='icon']");
+          if (!link) {
+            link = document.createElement('link');
+            link.rel = 'icon';
+            document.head.appendChild(link);
+          }
+          link.href = finalSettings.favicon;
         }
         return finalSettings;
       })();
