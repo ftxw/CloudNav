@@ -23,10 +23,6 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
   const [categoryId, setCategoryId] = useState(categories[0]?.id || 'common');
   const [pinned, setPinned] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-
-  // Icon State
-  const [iconUrl, setIconUrl] = useState('');
-
   const [duplicateWarning, setDuplicateWarning] = useState('');
 
   useEffect(() => {
