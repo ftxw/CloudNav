@@ -12,22 +12,26 @@
           cardStyle: 'detailed'
         };
         var customSettings = null;
+        var hasLocalStorage = false;
         try {
           var stored = localStorage.getItem('cloudnav_data_cache');
           if (stored) {
             var data = JSON.parse(stored);
             customSettings = data.settings || null;
+            hasLocalStorage = true;
           }
         } catch (e) {}
         var finalSettings = customSettings ? { ...initialSettings, ...customSettings } : initialSettings;
-        // 立即设置页面标题，避免显示网址
-        if (finalSettings.title) {
+        // 只有当本地有缓存数据时才立即设置标题，避免首次加载闪现
+        if (hasLocalStorage && finalSettings.title) {
           document.title = finalSettings.title;
-        } else {
+        } else if (hasLocalStorage) {
           document.title = 'CloudNav - 我的导航';
         }
         // 保存初始数据供 React 使用
         window.__CLOUDNAV_INITIAL_DATA__ = finalSettings;
+        // 标记是否从本地缓存加载
+        window.__CLOUDNAV_HAS_LOCAL_CACHE__ = hasLocalStorage;
       })();
     </script>
   <script type="importmap">
