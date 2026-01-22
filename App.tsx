@@ -448,15 +448,12 @@ function App() {
   }, []);
 
   useEffect(() => {
-      // 标题已在 HTML 中初始化，这里仅在设置变更时更新
-      if (siteSettings.title && document.title !== siteSettings.title) {
-          document.title = siteSettings.title;
-      }
+      // favicon 更新逻辑
       const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
       if (link && siteSettings.favicon && link.href !== siteSettings.favicon) {
           link.href = siteSettings.favicon;
       }
-  }, [siteSettings]);
+  }, [siteSettings.favicon]);
 
   useEffect(() => {
       // 关闭所有菜单的统一处理函数
@@ -720,6 +717,10 @@ function App() {
   const handleSaveAIConfig = (config: AIConfig, newSiteSettings: SiteSettings) => {
       setAiConfig(config);
       localStorage.setItem(AI_CONFIG_KEY, JSON.stringify(config));
+      // 立即更新标题
+      if (newSiteSettings.title && newSiteSettings.title !== document.title) {
+          document.title = newSiteSettings.title;
+      }
       if (authToken) {
           updateData(links, categories, newSiteSettings);
       } else {
