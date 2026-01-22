@@ -1,10 +1,8 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
   <head>
-    <meta charset="UTF-8" />
-    <title>CloudNav - 我的导航</title>
     <script>
-      window.__CLOUDNAV_INITIAL_DATA__ = (function() {
+      (function() {
         var defaultSettings = {
           title: 'CloudNav - 我的导航',
           navTitle: '云航 CloudNav',
@@ -20,7 +18,11 @@
           }
         } catch (e) {}
         var finalSettings = customSettings || defaultSettings;
+        // 立即设置页面标题，在title标签渲染之前
         document.title = finalSettings.title;
+        // 保存初始数据供后续使用
+        window.__CLOUDNAV_INITIAL_DATA__ = finalSettings;
+        // 设置favicon
         if (finalSettings.favicon) {
           var link = document.querySelector("link[rel~='icon']");
           if (!link) {
@@ -30,9 +32,10 @@
           }
           link.href = finalSettings.favicon;
         }
-        return finalSettings;
       })();
     </script>
+    <meta charset="UTF-8" />
+    <title></title>
   <script type="importmap">
 {
   "imports": {
