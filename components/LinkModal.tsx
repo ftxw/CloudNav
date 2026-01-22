@@ -62,9 +62,8 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
             normalizedUrl = 'https://' + targetUrl;
         }
 
-        // Use favicon.ico directly
-        const urlObj = new URL(normalizedUrl);
-        const newIcon = `${urlObj.origin}/favicon.ico`;
+        // Use favicon.org.cn API
+        const newIcon = `https://favicon.org.cn/get.php?url=${encodeURIComponent(normalizedUrl)}&size=128&key=usr-09b4268ccbf0b297611dc1a02fde7f739eec7ac3`;
 
         setIconUrl(newIcon);
       } catch (e) {
