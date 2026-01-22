@@ -1471,7 +1471,7 @@ function App() {
       {/* Category Section Context Menu (for empty space) */}
       {categorySectionMenu && authToken && (
         <div
-          key="category-section-menu"
+          key={`category-section-menu-${categorySectionMenu.categoryId}`}
           ref={categorySectionMenuRef}
           className="fixed z-[9999] bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 w-40 py-2 flex flex-col animate-in fade-in zoom-in duration-100"
           style={{ top: categorySectionMenu.y, left: categorySectionMenu.x, position: 'fixed' }}
