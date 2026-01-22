@@ -448,8 +448,9 @@ function App() {
             const res = await fetch('/api/storage');
             if (res.ok) {
                 const data = await res.json();
-                if (data.links && data.links.length > 0) {
-                    setLinks(data.links);
+                // 只要有数据（links 或 settings）就使用云端数据
+                if (data && (data.links || data.settings)) {
+                    setLinks(data.links || INITIAL_LINKS);
                     setCategories(data.categories || DEFAULT_CATEGORIES);
                     if (data.settings) {
                         setSiteSettings(prev => ({ ...prev, ...data.settings }));
@@ -458,7 +459,7 @@ function App() {
                     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
                     return;
                 }
-            } 
+            }
         } catch (e) {
             console.warn("Failed to fetch from cloud, falling back to local.", e);
         }
