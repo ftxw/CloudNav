@@ -192,7 +192,7 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
                             }}
                          />
                     ) : (
-                        title.charAt(0)
+                        <ImageIcon size={18} />
                     )}
                  </div>
 
