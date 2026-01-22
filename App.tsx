@@ -108,7 +108,6 @@ function App() {
   const initialSettings = (typeof window !== 'undefined' && (window as any).__CLOUDNAV_INITIAL_DATA__) || getInitialSettings();
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(initialSettings);
   const [dataLoaded, setDataLoaded] = useState(false);
-  const [iconCache, setIconCache] = useState<{ [linkId: string]: string }>({});
   const DEFAULT_TITLE = 'CloudNav - 我的导航';
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -374,7 +373,6 @@ function App() {
         setLinks(parsed.links || INITIAL_LINKS);
         setCategories(parsed.categories || DEFAULT_CATEGORIES);
         if (parsed.settings) setSiteSettings(prev => ({ ...prev, ...parsed.settings }));
-        if (parsed.iconCache) setIconCache(parsed.iconCache);
       } catch (e) {
         setLinks(INITIAL_LINKS);
         setCategories(DEFAULT_CATEGORIES);
@@ -385,35 +383,42 @@ function App() {
     }
   };
 
-  // 缓存图标到云端的函数
-  const cacheIcon = async (linkId: string, iconUrl: string) => {
+  // 缓存图标并更新到 links 中的 icon 字段
+  const cacheIcon = async (linkId: string, iconUrl: string): Promise<string | null> => {
     try {
       const response = await fetch(iconUrl);
       const blob = await response.blob();
       const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64data = reader.result as string;
-        setIconCache(prev => ({ ...prev, [linkId]: base64data }));
-      };
-      reader.readAsDataURL(blob);
+      return new Promise((resolve) => {
+        reader.onloadend = () => {
+          const base64data = reader.result as string;
+          // 更新 link 的 icon 字段为 base64 数据
+          const updatedLinks = links.map(l => l.id === linkId ? { ...l, icon: base64data } : l);
+          setLinks(updatedLinks);
+          updateData(updatedLinks, categories);
+          resolve(base64data);
+        };
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
     } catch (e) {
-      // Ignore errors silently
+      return null;
     }
   };
 
   // 批量缓存缺失的图标
   const cacheMissingIcons = async (linksToCache: LinkItem[]) => {
     for (const link of linksToCache) {
-      if (link.icon && link.icon.includes('favicon.org.cn') && !iconCache[link.id]) {
+      if (link.icon && link.icon.includes('favicon.org.cn')) {
         await new Promise(resolve => setTimeout(resolve, 100));
-        cacheIcon(link.id, link.icon);
+        await cacheIcon(link.id, link.icon);
       }
     }
   };
 
   // 提取链接图标的可复用函数
   const getLinkIconDisplay = (link: LinkItem) => {
-    const iconSrc = iconCache[link.id] || link.icon;
+    const iconSrc = link.icon;
     if (iconSrc) {
       return (
         <img
@@ -439,7 +444,7 @@ function App() {
                 'Content-Type': 'application/json',
                 'x-auth-password': token
             },
-            body: JSON.stringify({ links: newLinks, categories: newCategories, settings: newSettings, iconCache })
+            body: JSON.stringify({ links: newLinks, categories: newCategories, settings: newSettings })
         });
 
         if (response.status === 401) {
@@ -469,7 +474,7 @@ function App() {
       if (newSettings.title && document.title !== newSettings.title) {
           document.title = newSettings.title;
       }
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ links: newLinks, categories: newCategories, settings: newSettings, iconCache }));
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ links: newLinks, categories: newCategories, settings: newSettings }));
       if (authToken) {
           syncToCloud(newLinks, newCategories, newSettings, authToken);
       }
@@ -853,12 +858,6 @@ function App() {
 
   const handleConfirmDeleteLink = () => {
     if (!deleteLinkConfirm) return;
-    // 从 iconCache 中移除对应的图标
-    setIconCache(prev => {
-      const newCache = { ...prev };
-      delete newCache[deleteLinkConfirm.id];
-      return newCache;
-    });
     updateData(links.filter(l => l.id !== deleteLinkConfirm.id), categories);
     setDeleteLinkConfirm(null);
   };
