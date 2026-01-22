@@ -74,13 +74,15 @@ function App() {
   
   // Site Settings - Use global initial data if available
   const initialSettings = (typeof window !== 'undefined' && (window as any).__CLOUDNAV_INITIAL_DATA__) || {
-      title: 'CloudNav - 我的导航',
+      title: '',
       navTitle: '云航 CloudNav',
       favicon: '',
       cardStyle: 'detailed'
   };
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(initialSettings);
   const titleInitializedRef = useRef(false);
+  const dataLoadedRef = useRef(false);
+  const DEFAULT_TITLE = 'CloudNav - 我的导航';
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
@@ -440,11 +442,8 @@ function App() {
                     setCategories(data.categories || DEFAULT_CATEGORIES);
                     if (data.settings) {
                         setSiteSettings(prev => ({ ...prev, ...data.settings }));
-                        // 立即更新标题
-                        if (data.settings.title) {
-                            document.title = data.settings.title;
-                        }
                     }
+                    dataLoadedRef.current = true;
                     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
                     return;
                 }
@@ -453,15 +452,17 @@ function App() {
             console.warn("Failed to fetch from cloud, falling back to local.", e);
         }
         loadFromLocal();
+        dataLoadedRef.current = true;
     };
 
     initData();
   }, []);
 
   useEffect(() => {
-      // 标题更新逻辑 - 仅在首次设置时执行，避免重复设置
-      if (!titleInitializedRef.current && siteSettings.title) {
-          document.title = siteSettings.title;
+      // 标题更新逻辑 - 只有在数据加载后才设置标题
+      if (dataLoadedRef.current && !titleInitializedRef.current) {
+          const finalTitle = siteSettings.title || DEFAULT_TITLE;
+          document.title = finalTitle;
           titleInitializedRef.current = true;
       }
       // favicon 更新逻辑
