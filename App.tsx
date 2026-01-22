@@ -459,8 +459,9 @@ function App() {
   }, []);
 
   useEffect(() => {
-      // 标题更新逻辑 - 只有在数据加载后才设置标题
-      if (dataLoadedRef.current && !titleInitializedRef.current) {
+      // 标题更新逻辑 - 当 title 有值（非空）时立即设置，无需等待 dataLoadedRef
+      if (!titleInitializedRef.current) {
+          // 初始标题设置：使用实际设置的标题，如果为空则使用默认标题
           const finalTitle = siteSettings.title || DEFAULT_TITLE;
           document.title = finalTitle;
           titleInitializedRef.current = true;
