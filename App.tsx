@@ -1720,12 +1720,14 @@ function App() {
                     const pinnedSection = section?.querySelector('h2')?.textContent?.includes('置顶 / 常用') ?? false;
                     if (pinnedSection) {
                         setCategorySectionMenu({ x, y, categoryId: 'pinned' });
-                    } else if (section && section.id?.startsWith('cat-')) {
-                        // Extract category ID from section id (cat-{categoryId})
-                        const categoryId = section.id.replace('cat-', '');
-                        setCategorySectionMenu({ x, y, categoryId });
-                    } else if (activeCategory !== 'all' && !section) {
-                        // Right-click on empty space but not in any section, use active category
+                    } else if (activeCategory === 'all') {
+                        // All links mode: use the section ID to determine which category
+                        if (section && section.id?.startsWith('cat-')) {
+                            const categoryId = section.id.replace('cat-', '');
+                            setCategorySectionMenu({ x, y, categoryId });
+                        }
+                    } else {
+                        // Single category mode: use the active category for all empty space
                         setCategorySectionMenu({ x, y, categoryId: activeCategory });
                     }
                 }
