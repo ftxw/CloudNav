@@ -445,6 +445,19 @@ function App() {
     }
 
     const initData = async () => {
+        // 先检查本地是否有数据
+        const hasLocalData = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (hasLocalData) {
+            console.log('Loading from local storage (cached)');
+            loadFromLocal();
+            setDataLoaded(true);
+            setDebugInfo(prev => ({ ...prev, dataLoaded: true }));
+            // 在后台尝试同步云端数据
+            syncFromCloudInBackground();
+            return;
+        }
+
+        // 本地没有数据，从云端加载
         try {
             const res = await fetch('/api/storage');
             if (res.ok) {
@@ -467,10 +480,31 @@ function App() {
         } catch (e) {
             console.warn("Failed to fetch from cloud, falling back to local.", e);
         }
-        console.log('Loading from local storage');
+        console.log('Loading from local storage (fallback)');
         loadFromLocal();
         setDataLoaded(true);
         setDebugInfo(prev => ({ ...prev, dataLoaded: true }));
+    };
+
+    // 后台同步云端数据
+    const syncFromCloudInBackground = async () => {
+        try {
+            const res = await fetch('/api/storage');
+            if (res.ok) {
+                const data = await res.json();
+                console.log('Cloud data synced in background:', data);
+                if (data && (data.links || data.settings)) {
+                    setLinks(data.links || INITIAL_LINKS);
+                    setCategories(data.categories || DEFAULT_CATEGORIES);
+                    if (data.settings) {
+                        setSiteSettings(prev => ({ ...prev, ...data.settings }));
+                    }
+                    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+                }
+            }
+        } catch (e) {
+            console.warn("Failed to sync from cloud in background.", e);
+        }
     };
 
     initData();
