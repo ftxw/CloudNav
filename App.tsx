@@ -410,7 +410,15 @@ function App() {
   const cacheIconForLink = async (iconUrl: string): Promise<string> => {
     try {
       const response = await fetch(iconUrl);
+      if (!response.ok) {
+        console.error('Failed to fetch icon:', response.status);
+        return iconUrl;
+      }
       const blob = await response.blob();
+      if (!blob.type.startsWith('image/')) {
+        console.error('Not an image:', blob.type);
+        return iconUrl;
+      }
       const reader = new FileReader();
       return new Promise((resolve) => {
         reader.onloadend = () => {
@@ -420,6 +428,7 @@ function App() {
         reader.readAsDataURL(blob);
       });
     } catch (e) {
+      console.error('cacheIconForLink error:', e);
       return iconUrl; // 失败时返回原始 URL
     }
   };
