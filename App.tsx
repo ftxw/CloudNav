@@ -1287,6 +1287,9 @@ function App() {
                     let y = e.clientY;
                     if (x + 200 > window.innerWidth) x = window.innerWidth - 210;
                     if (y + 180 > window.innerHeight) y = window.innerHeight - 190;
+                    // Close other context menus
+                    setContextMenu(null);
+                    setCategoryContextMenu(null);
                     setCategorySectionMenu({ x, y, categoryId: 'sidebar' });
                 }
             }}
