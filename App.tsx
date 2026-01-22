@@ -406,12 +406,35 @@ function App() {
     }
   };
 
+  // 立即转换图标为 base64（用于添加/编辑链接时）
+  const cacheIconForLink = async (iconUrl: string): Promise<string> => {
+    try {
+      const response = await fetch(iconUrl);
+      const blob = await response.blob();
+      const reader = new FileReader();
+      return new Promise((resolve) => {
+        reader.onloadend = () => {
+          resolve(reader.result as string);
+        };
+        reader.onerror = () => resolve(iconUrl); // 失败时返回原始 URL
+        reader.readAsDataURL(blob);
+      });
+    } catch (e) {
+      return iconUrl; // 失败时返回原始 URL
+    }
+  };
+
   // 批量缓存缺失的图标
   const cacheMissingIcons = async (linksToCache: LinkItem[]) => {
     for (const link of linksToCache) {
       if (link.icon && link.icon.includes('favicon.org.cn')) {
         await new Promise(resolve => setTimeout(resolve, 100));
-        await cacheIcon(link.id, link.icon);
+        const base64data = await cacheIconForLink(link.icon);
+        if (base64data !== link.icon) {
+          const updatedLinks = links.map(l => l.id === link.id ? { ...l, icon: base64data } : l);
+          setLinks(updatedLinks);
+          updateData(updatedLinks, categories);
+        }
       }
     }
   };
@@ -796,9 +819,16 @@ function App() {
       alert(`成功导入 ${newLinks.length} 个新书签!`);
   };
 
-  const handleAddLink = (data: Omit<LinkItem, 'id' | 'createdAt'>) => {
+  const handleAddLink = async (data: Omit<LinkItem, 'id' | 'createdAt'>) => {
+    let iconData = data.icon;
+    // 立即转换图标为 base64
+    if (iconData && iconData.includes('favicon.org.cn')) {
+      iconData = await cacheIconForLink(iconData);
+    }
+
     const newLink: LinkItem = {
       ...data,
+      icon: iconData,
       id: Date.now().toString(),
       createdAt: Date.now()
     };
@@ -810,30 +840,28 @@ function App() {
       newLink.pinnedOrder = maxPinnedOrder + 1;
     }
 
-    // 缓存图标（如果是 favicon.org.cn 的 URL）
-    if (newLink.icon && newLink.icon.includes('favicon.org.cn')) {
-      cacheIcon(newLink.id, newLink.icon);
-    }
-
     updateData([newLink, ...links], categories);
     setPrefillLink(undefined);
   };
 
-  const handleEditLink = (data: Omit<LinkItem, 'id' | 'createdAt'>) => {
+  const handleEditLink = async (data: Omit<LinkItem, 'id' | 'createdAt'>) => {
     if (!editingLink) return;
+
+    let iconData = data.icon;
+    // 立即转换图标为 base64
+    if (iconData && iconData.includes('favicon.org.cn')) {
+      iconData = await cacheIconForLink(iconData);
+    }
+
     const updated = links.map(l => {
         if (l.id === editingLink.id) {
-            const newLink = { ...l, ...data };
+            const newLink = { ...l, ...data, icon: iconData };
             // 如果从未置顶变为置顶，设置初始 pinnedOrder
             if (newLink.pinned && l.pinnedOrder === undefined) {
                 const maxPinnedOrder = links.reduce((max, link) => {
                     return link.pinned && link.pinnedOrder !== undefined ? Math.max(max, link.pinnedOrder) : max;
                 }, -1);
                 newLink.pinnedOrder = maxPinnedOrder + 1;
-            }
-            // 缓存图标（如果是 favicon.org.cn 的 URL）
-            if (newLink.icon && newLink.icon.includes('favicon.org.cn')) {
-              cacheIcon(newLink.id, newLink.icon);
             }
             return newLink;
         }
