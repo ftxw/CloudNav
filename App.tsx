@@ -1546,7 +1546,39 @@ function App() {
           ref={mainRef}
           className="flex-1 flex flex-col h-full bg-slate-50 dark:bg-slate-900 overflow-hidden relative"
       >
-        <div className="flex-1 overflow-y-auto scroll-smooth">
+        <div
+            className="flex-1 overflow-y-auto scroll-smooth"
+            onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                // Check if right-click was on a link card
+                const target = e.target as HTMLElement;
+                const linkCard = target.closest('a[href]');
+                if (!linkCard) {
+                    // Right-click was on empty space
+                    let x = e.clientX;
+                    let y = e.clientY;
+                    if (x + 200 > window.innerWidth) x = window.innerWidth - 210;
+                    if (y + 180 > window.innerHeight) y = window.innerHeight - 190;
+                    // Determine if click is in pinned section or category section
+                    const targetElement = e.target as HTMLElement;
+                    const section = targetElement.closest('section');
+                    const pinnedSection = section?.querySelector('h2')?.textContent?.includes('置顶 / 常用') ?? false;
+                    if (pinnedSection) {
+                        setCategorySectionMenu({ x, y, categoryId: 'pinned' });
+                    } else if (activeCategory === 'all') {
+                        // All links mode: use the section ID to determine which category
+                        if (section && section.id?.startsWith('cat-')) {
+                            const categoryId = section.id.replace('cat-', '');
+                            setCategorySectionMenu({ x, y, categoryId });
+                        }
+                    } else {
+                        // Single category mode: use the active category for all empty space
+                        setCategorySectionMenu({ x, y, categoryId: activeCategory });
+                    }
+                }
+            }}
+        >
         <header className="h-16 px-4 lg:px-8 flex items-center justify-between bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shrink-0">
           <div className="flex items-center gap-4 flex-1">
             <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 -ml-2 text-slate-600 dark:text-slate-300">
@@ -1702,36 +1734,6 @@ function App() {
 
         <div
             className="p-4 lg:p-8 space-y-8"
-            onContextMenu={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                // Check if right-click was on a link card
-                const target = e.target as HTMLElement;
-                const linkCard = target.closest('a[href]');
-                if (!linkCard) {
-                    // Right-click was on empty space
-                    let x = e.clientX;
-                    let y = e.clientY;
-                    if (x + 200 > window.innerWidth) x = window.innerWidth - 210;
-                    if (y + 180 > window.innerHeight) y = window.innerHeight - 190;
-                    // Determine if click is in pinned section or category section
-                    const targetElement = e.target as HTMLElement;
-                    const section = targetElement.closest('section');
-                    const pinnedSection = section?.querySelector('h2')?.textContent?.includes('置顶 / 常用') ?? false;
-                    if (pinnedSection) {
-                        setCategorySectionMenu({ x, y, categoryId: 'pinned' });
-                    } else if (activeCategory === 'all') {
-                        // All links mode: use the section ID to determine which category
-                        if (section && section.id?.startsWith('cat-')) {
-                            const categoryId = section.id.replace('cat-', '');
-                            setCategorySectionMenu({ x, y, categoryId });
-                        }
-                    } else {
-                        // Single category mode: use the active category for all empty space
-                        setCategorySectionMenu({ x, y, categoryId: activeCategory });
-                    }
-                }
-            }}
         >
 
             {/* 全部链接模式：置顶链接在最顶部显示 */}
@@ -1983,7 +1985,7 @@ function App() {
                 </div>
             )}
 
-            <div className="h-64"></div>
+            <div className="h-20"></div>
         </div>
         </div>
       </main>
