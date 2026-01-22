@@ -48,6 +48,22 @@ const AI_CONFIG_KEY = 'cloudnav_ai_config';
 const SEARCH_ENGINES_KEY = 'cloudnav_search_engines';
 
 function App() {
+  // --- 可复用的样式对象 ---
+  const cardStyles = {
+    simple: 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10',
+    detailed: 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'
+  };
+
+  const iconSizeStyles = {
+    simple: 'w-6 h-6 text-xs',
+    detailed: 'w-8 h-8 text-sm'
+  };
+
+  const paddingStyles = {
+    simple: 'p-2',
+    detailed: 'p-3'
+  };
+
   // --- State ---
   const [links, setLinks] = useState<LinkItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -369,6 +385,51 @@ function App() {
     }
   };
 
+  // 缓存图标到云端的函数
+  const cacheIcon = async (linkId: string, iconUrl: string) => {
+    try {
+      const response = await fetch(iconUrl);
+      const blob = await response.blob();
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64data = reader.result as string;
+        setIconCache(prev => ({ ...prev, [linkId]: base64data }));
+      };
+      reader.readAsDataURL(blob);
+    } catch (e) {
+      // Ignore errors silently
+    }
+  };
+
+  // 批量缓存缺失的图标
+  const cacheMissingIcons = async (linksToCache: LinkItem[]) => {
+    for (const link of linksToCache) {
+      if (link.icon && link.icon.includes('favicon.org.cn') && !iconCache[link.id]) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        cacheIcon(link.id, link.icon);
+      }
+    }
+  };
+
+  // 提取链接图标的可复用函数
+  const getLinkIconDisplay = (link: LinkItem) => {
+    const iconSrc = iconCache[link.id] || link.icon;
+    if (iconSrc) {
+      return (
+        <img
+          src={iconSrc}
+          alt=""
+          className="w-5 h-5 object-contain"
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+            e.currentTarget.parentElement!.innerText = link.title.charAt(0);
+          }}
+        />
+      );
+    }
+    return link.title.charAt(0);
+  };
+
   const syncToCloud = async (newLinks: LinkItem[], newCategories: Category[], newSettings: SiteSettings, token: string) => {
     setSyncStatus('saving');
     try {
@@ -390,12 +451,11 @@ function App() {
         }
 
         if (!response.ok) throw new Error('Network response was not ok');
-        
+
         setSyncStatus('saved');
         setTimeout(() => setSyncStatus('idle'), 2000);
         return true;
     } catch (error) {
-        console.error("Sync failed", error);
         setSyncStatus('error');
         return false;
     }
@@ -460,7 +520,6 @@ function App() {
             const res = await fetch('/api/storage');
             if (res.ok) {
                 const data = await res.json();
-                console.log('Cloud data loaded:', data);
                 // 只要有数据（links 或 settings）就使用云端数据
                 if (data && (data.links || data.settings)) {
                     setLinks(data.links || INITIAL_LINKS);
@@ -473,11 +532,13 @@ function App() {
                     }
                     setDataLoaded(true);
                     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+                    // 缓存缺失的图标
+                    cacheMissingIcons(data.links || INITIAL_LINKS);
                     return;
                 }
             }
         } catch (e) {
-            console.warn("Failed to fetch from cloud, falling back to local.", e);
+            // Ignore errors silently
         }
         loadFromLocal();
         setDataLoaded(true);
@@ -499,10 +560,12 @@ function App() {
                         setIconCache(data.iconCache);
                     }
                     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+                    // 缓存缺失的图标
+                    cacheMissingIcons(data.links || INITIAL_LINKS);
                 }
             }
         } catch (e) {
-            console.warn("Failed to sync from cloud in background.", e);
+            // Ignore errors silently
         }
     };
 
@@ -523,6 +586,18 @@ function App() {
           link.href = siteSettings.favicon;
       }
   }, [siteSettings.title, siteSettings.favicon, dataLoaded]);
+
+  // 数据加载完成后，自动缓存缺失的图标
+  useEffect(() => {
+      if (dataLoaded && links.length > 0) {
+          const linksToCache = links.filter(l =>
+              l.icon && l.icon.includes('favicon.org.cn') && !iconCache[l.id]
+          );
+          if (linksToCache.length > 0) {
+              cacheMissingIcons(linksToCache);
+          }
+      }
+  }, [dataLoaded, links, iconCache]);
 
   useEffect(() => {
       // 关闭所有菜单的统一处理函数
@@ -722,22 +797,6 @@ function App() {
       alert(`成功导入 ${newLinks.length} 个新书签!`);
   };
 
-  // 缓存图标到云端的函数
-  const cacheIcon = async (linkId: string, iconUrl: string) => {
-    try {
-      const response = await fetch(iconUrl);
-      const blob = await response.blob();
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64data = reader.result as string;
-        setIconCache(prev => ({ ...prev, [linkId]: base64data }));
-      };
-      reader.readAsDataURL(blob);
-    } catch (e) {
-      console.error('Failed to cache icon:', e);
-    }
-  };
-
   const handleAddLink = (data: Omit<LinkItem, 'id' | 'createdAt'>) => {
     const newLink: LinkItem = {
       ...data,
@@ -821,6 +880,13 @@ function App() {
       // 立即更新标题（当用户修改标题时）
       if (newSiteSettings.title && document.title !== newSiteSettings.title) {
           document.title = newSiteSettings.title;
+      }
+      // 立即更新 favicon（当用户修改 favicon 时）
+      if (newSiteSettings.favicon) {
+          const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+          if (link) {
+              link.href = newSiteSettings.favicon;
+          }
       }
       if (authToken) {
           updateData(links, categories, newSiteSettings);
@@ -961,40 +1027,24 @@ function App() {
           transition: isDragging ? 'none' : transition,
       };
 
-      // 优先使用 iconCache 中的 base64 图标，否则使用 link.icon
-      const iconSrc = iconCache[link.id] || link.icon;
-      const iconDisplay = iconSrc ? (
-         <img
-            src={iconSrc}
-            alt=""
-            className="w-5 h-5 object-contain"
-            onError={(e) => {
-                e.currentTarget.style.display = 'none';
-                e.currentTarget.parentElement!.innerText = link.title.charAt(0);
-            }}
-         />
-      ) : link.title.charAt(0);
-
-      const isSimple = siteSettings.cardStyle === 'simple';
-
       return (
         <div
             ref={setNodeRef}
             style={style}
-            className={`relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-white dark:bg-slate-800 rounded-xl border ${isSorting ? 'cursor-move border-dashed border-blue-400 dark:border-blue-500' : 'border-slate-100 dark:border-slate-700/50'} shadow-sm ${isDragging ? 'opacity-0' : ''}`}
+            className={`relative flex flex-col ${paddingStyles[siteSettings.cardStyle]} bg-white dark:bg-slate-800 rounded-xl border ${isSorting ? 'cursor-move border-dashed border-blue-400 dark:border-blue-500' : 'border-slate-100 dark:border-slate-700/50'} shadow-sm ${isDragging ? 'opacity-0' : ''}`}
             title={link.description || link.url}
             {...attributes}
             {...listeners}
         >
-            <div className={`flex items-center gap-3 ${isSimple ? '' : 'mb-1.5'} pr-6`}>
-                <div className={`${isSimple ? 'w-6 h-6 text-xs' : 'w-8 h-8 text-sm'} rounded-lg bg-slate-50 dark:bg-slate-700 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold uppercase shrink-0 overflow-hidden`}>
-                    {iconDisplay}
+            <div className={`flex items-center gap-3 ${siteSettings.cardStyle === 'simple' ? '' : 'mb-1.5'} pr-6`}>
+                <div className={`${iconSizeStyles[siteSettings.cardStyle]} rounded-lg bg-slate-50 dark:bg-slate-700 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold uppercase shrink-0 overflow-hidden`}>
+                    {getLinkIconDisplay(link)}
                 </div>
                 <h3 className="font-medium text-sm text-slate-800 dark:text-slate-200 truncate flex-1">
                     {link.title}
                 </h3>
             </div>
-            {!isSimple && (
+            {siteSettings.cardStyle === 'detailed' && (
                 <div className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 h-4 w-full overflow-hidden">
                     {link.description || <span className="opacity-0">.</span>}
                 </div>
@@ -1036,23 +1086,30 @@ function App() {
 
   // --- Render Components ---
 
+  const renderDragOverlayCard = (linkId: string) => {
+    const link = links.find(l => l.id === linkId);
+    if (!link) return null;
+    const isSimple = siteSettings.cardStyle === 'simple';
+    return (
+      <div className={`group relative flex flex-col ${paddingStyles[siteSettings.cardStyle]} bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-300 dark:border-blue-600 shadow-2xl pointer-events-none`}>
+        <div className={`flex items-center gap-3 ${isSimple ? '' : 'mb-1.5'} pr-6`}>
+          <div className={`${iconSizeStyles[siteSettings.cardStyle]} rounded-lg bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold uppercase shrink-0 overflow-hidden`}>
+            {getLinkIconDisplay(link)}
+          </div>
+          <h3 className="font-medium text-sm text-blue-600 dark:text-blue-400 truncate flex-1">
+            {link.title}
+          </h3>
+        </div>
+        {!isSimple && (
+          <div className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 h-4 w-full overflow-hidden">
+            {link.description || <span className="opacity-0">.</span>}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderLinkCard = (link: LinkItem) => {
-      // 优先使用 iconCache 中的 base64 图标，否则使用 link.icon
-      const iconSrc = iconCache[link.id] || link.icon;
-      const iconDisplay = iconSrc ? (
-         <img
-            src={iconSrc}
-            alt=""
-            className="w-5 h-5 object-contain"
-            onError={(e) => {
-                e.currentTarget.style.display = 'none';
-                e.currentTarget.parentElement!.innerText = link.title.charAt(0);
-            }}
-         />
-      ) : link.title.charAt(0);
-
-      const isSimple = siteSettings.cardStyle === 'simple';
-
       return (
         <a
             key={link.id}
@@ -1064,13 +1121,10 @@ function App() {
                 e.stopPropagation();
                 let x = e.clientX;
                 let y = e.clientY;
-                // Boundary adjustment
                 if (x + 180 > window.innerWidth) x = window.innerWidth - 190;
                 if (y + 220 > window.innerHeight) y = window.innerHeight - 230;
-                  // 检查是否在置顶区域内右键
                     const target = e.currentTarget;
                     const inPinnedSection = target.closest('section')?.querySelector('h2')?.textContent?.includes('置顶 / 常用') ?? false;
-                    // Close other context menus
                     setCategoryContextMenu(null);
                     setCategorySectionMenu(null);
                     setContextMenu({ x, y, link, inPinnedSection });
@@ -1086,7 +1140,7 @@ function App() {
                     bg.style.setProperty('--pointer-y', y.toString());
                 }
             }}
-            className={`group relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700/50 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 overflow-hidden`}
+            className={`group relative flex flex-col ${paddingStyles[siteSettings.cardStyle]} bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700/50 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 overflow-hidden`}
             title={link.description || link.url}
         >
             {/* Blurred icon background on hover */}
@@ -1105,15 +1159,15 @@ function App() {
                 </div>
             )}
             <div className="relative z-10">
-                <div className={`flex items-center gap-3 ${!isSimple && link.description ? 'mb-1.5' : ''} pr-8`}>
-                    <div className={`${isSimple ? 'w-6 h-6 text-xs' : 'w-8 h-8 text-sm'} rounded-lg bg-slate-50/80 dark:bg-slate-700/80 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold uppercase shrink-0 overflow-hidden backdrop-blur-sm`}>
-                        {iconDisplay}
+                <div className={`flex items-center gap-3 ${siteSettings.cardStyle === 'detailed' && link.description ? 'mb-1.5' : ''} pr-8`}>
+                    <div className={`${iconSizeStyles[siteSettings.cardStyle]} rounded-lg bg-slate-50/80 dark:bg-slate-700/80 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold uppercase shrink-0 overflow-hidden backdrop-blur-sm`}>
+                        {getLinkIconDisplay(link)}
                     </div>
                     <h3 className="font-medium text-sm text-slate-800 dark:text-slate-200 truncate flex-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                         {link.title}
                     </h3>
                 </div>
-                {!isSimple && link.description && (
+                {siteSettings.cardStyle === 'detailed' && link.description && (
                     <div className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 h-4 w-full overflow-hidden">
                         {link.description}
                     </div>
@@ -1882,46 +1936,16 @@ function App() {
                     {isSortingLinks === 'pinned' ? (
                         <DndContext sensors={sensors} onDragStart={handleLinkDragStart} onDragEnd={handleLinkDragEnd}>
                             <SortableContext items={pinnedLinks.map(l => l.id)} strategy={rectSortingStrategy}>
-                                <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
+                                <div className={`grid gap-3 ${cardStyles[siteSettings.cardStyle]}`}>
                                     {pinnedLinks.map(link => <SortableLinkCard key={link.id} link={link} isSorting={true} />)}
                                 </div>
                             </SortableContext>
                             <DragOverlay>
-                              {activeId ? (() => {
-                                const link = links.find(l => l.id === activeId);
-                                if (!link) return null;
-                                // 优先使用 iconCache 中的 base64 图标，否则使用 link.icon
-                                const iconSrc = iconCache[link.id] || link.icon;
-                                const iconDisplay = iconSrc ? (
-                                   <img
-                                      src={iconSrc}
-                                      alt=""
-                                      className="w-5 h-5 object-contain"
-                                  />
-                                ) : link.title.charAt(0);
-                                const isSimple = siteSettings.cardStyle === 'simple';
-                                return (
-                                  <div className={`group relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-300 dark:border-blue-600 shadow-2xl pointer-events-none`}>
-                                    <div className={`flex items-center gap-3 ${isSimple ? '' : 'mb-1.5'} pr-6`}>
-                                        <div className={`${isSimple ? 'w-6 h-6 text-xs' : 'w-8 h-8 text-sm'} rounded-lg bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold uppercase shrink-0 overflow-hidden`}>
-                                            {iconDisplay}
-                                        </div>
-                                        <h3 className="font-medium text-sm text-blue-600 dark:text-blue-400 truncate flex-1">
-                                            {link.title}
-                                        </h3>
-                                    </div>
-                                    {!isSimple && (
-                                        <div className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 h-4 w-full overflow-hidden">
-                                            {link.description || <span className="opacity-0">.</span>}
-                                        </div>
-                                    )}
-                                  </div>
-                                );
-                              })() : null}
+                              {activeId && renderDragOverlayCard(activeId)}
                             </DragOverlay>
                         </DndContext>
                     ) : (
-                        <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
+                        <div className={`grid gap-3 ${cardStyles[siteSettings.cardStyle]}`}>
                             {pinnedLinks.map(link => renderLinkCard(link))}
                         </div>
                     )}
@@ -1950,46 +1974,16 @@ function App() {
                     {isSortingLinks === 'pinned' ? (
                         <DndContext sensors={sensors} onDragStart={handleLinkDragStart} onDragEnd={handleLinkDragEnd}>
                             <SortableContext items={pinnedLinks.map(l => l.id)} strategy={rectSortingStrategy}>
-                                <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
+                                <div className={`grid gap-3 ${cardStyles[siteSettings.cardStyle]}`}>
                                     {pinnedLinks.map(link => <SortableLinkCard key={link.id} link={link} isSorting={true} />)}
                                 </div>
                             </SortableContext>
                             <DragOverlay>
-                              {activeId ? (() => {
-                                const link = links.find(l => l.id === activeId);
-                                if (!link) return null;
-                                // 优先使用 iconCache 中的 base64 图标，否则使用 link.icon
-                                const iconSrc = iconCache[link.id] || link.icon;
-                                const iconDisplay = iconSrc ? (
-                                   <img
-                                      src={iconSrc}
-                                      alt=""
-                                      className="w-5 h-5 object-contain"
-                                  />
-                                ) : link.title.charAt(0);
-                                const isSimple = siteSettings.cardStyle === 'simple';
-                                return (
-                                  <div className={`group relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-300 dark:border-blue-600 shadow-2xl pointer-events-none`}>
-                                    <div className={`flex items-center gap-3 ${isSimple ? '' : 'mb-1.5'} pr-6`}>
-                                        <div className={`${isSimple ? 'w-6 h-6 text-xs' : 'w-8 h-8 text-sm'} rounded-lg bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold uppercase shrink-0 overflow-hidden`}>
-                                            {iconDisplay}
-                                        </div>
-                                        <h3 className="font-medium text-sm text-blue-600 dark:text-blue-400 truncate flex-1">
-                                            {link.title}
-                                        </h3>
-                                    </div>
-                                    {!isSimple && (
-                                        <div className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 h-4 w-full overflow-hidden">
-                                            {link.description || <span className="opacity-0">.</span>}
-                                        </div>
-                                    )}
-                                  </div>
-                                );
-                              })() : null}
+                              {activeId && renderDragOverlayCard(activeId)}
                             </DragOverlay>
                         </DndContext>
                     ) : (
-                        <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
+                        <div className={`grid gap-3 ${cardStyles[siteSettings.cardStyle]}`}>
                             {pinnedLinks.map(link => renderLinkCard(link))}
                         </div>
                     )}
@@ -2053,44 +2047,16 @@ function App() {
                         ) : isSortingLinks === cat.id ? (
                                 <DndContext sensors={sensors} onDragStart={handleLinkDragStart} onDragEnd={handleLinkDragEnd}>
                                     <SortableContext items={catLinks.map(l => l.id)} strategy={rectSortingStrategy}>
-                                        <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
+                                        <div className={`grid gap-3 ${cardStyles[siteSettings.cardStyle]}`}>
                                             {catLinks.map(link => <SortableLinkCard key={link.id} link={link} isSorting={true} />)}
                                         </div>
                                     </SortableContext>
-                                    <DragOverlay>
-                                      {activeId ? (() => {
-                                        const link = links.find(l => l.id === activeId);
-                                        if (!link) return null;
-                                        const iconDisplay = link.icon ? (
-                                           <img
-                                              src={link.icon}
-                                              alt=""
-                                              className="w-5 h-5 object-contain"
-                                          />
-                                        ) : link.title.charAt(0);
-                                        const isSimple = siteSettings.cardStyle === 'simple';
-                                        return (
-                                          <div className={`group relative flex flex-col ${isSimple ? 'p-2' : 'p-3'} bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-300 dark:border-blue-600 shadow-2xl pointer-events-none`}>
-                                            <div className={`flex items-center gap-3 ${isSimple ? '' : 'mb-1.5'} pr-6`}>
-                                                <div className={`${isSimple ? 'w-6 h-6 text-xs' : 'w-8 h-8 text-sm'} rounded-lg bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold uppercase shrink-0 overflow-hidden`}>
-                                                    {iconDisplay}
-                                                </div>
-                                                <h3 className="font-medium text-sm text-blue-600 dark:text-blue-400 truncate flex-1">
-                                                    {link.title}
-                                                </h3>
-                                            </div>
-                                            {!isSimple && (
-                                                <div className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 h-4 w-full overflow-hidden">
-                                                    {link.description || <span className="opacity-0">.</span>}
-                                                </div>
-                                            )}
-                                          </div>
-                                        );
-                                      })() : null}
-                                    </DragOverlay>
+                            <DragOverlay>
+                              {activeId && renderDragOverlayCard(activeId)}
+                            </DragOverlay>
                                 </DndContext>
                             ) : (
-                             <div className={`grid gap-3 ${catLinks.length === 0 ? '' : siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
+                             <div className={`grid gap-3 ${catLinks.length === 0 ? '' : cardStyles[siteSettings.cardStyle]}`}>
                                 {catLinks.length === 0 ? (
                                     <div className="text-center py-8 text-slate-400 text-sm">
                                         暂无链接
