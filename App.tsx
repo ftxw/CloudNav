@@ -520,12 +520,16 @@ function App() {
       });
       // 标题更新逻辑 - 数据加载完成后设置标题
       // 如果标题为空，则使用默认标题
-      if (dataLoaded && !titleInitializedRef.current) {
+      if (dataLoaded) {
           const finalTitle = siteSettings.title || DEFAULT_TITLE;
-          console.log('Setting title:', finalTitle, 'siteSettings.title:', siteSettings.title);
-          document.title = finalTitle;
-          titleInitializedRef.current = true;
-          setDebugInfo(prev => ({ ...prev, titleInitialized: true }));
+          if (document.title !== finalTitle) {
+              console.log('Setting title:', finalTitle, 'siteSettings.title:', siteSettings.title);
+              document.title = finalTitle;
+              if (!titleInitializedRef.current) {
+                  titleInitializedRef.current = true;
+                  setDebugInfo(prev => ({ ...prev, titleInitialized: true }));
+              }
+          }
       }
       // favicon 更新逻辑
       const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
