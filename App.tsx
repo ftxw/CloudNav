@@ -1957,8 +1957,14 @@ function App() {
                                     </DragOverlay>
                                 </DndContext>
                             ) : (
-                             <div className={`grid gap-3 ${siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
-                                {catLinks.map(link => renderLinkCard(link))}
+                             <div className={`grid gap-3 ${catLinks.length === 0 ? '' : siteSettings.cardStyle === 'simple' ? 'grid-cols-2 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'}`}>
+                                {catLinks.length === 0 ? (
+                                    <div className="text-center py-8 text-slate-400 text-sm">
+                                        暂无链接
+                                    </div>
+                                ) : (
+                                    catLinks.map(link => renderLinkCard(link))
+                                )}
                              </div>
                             )}
                     </section>
