@@ -409,24 +409,17 @@ function App() {
   // 立即转换图标为 base64（用于添加/编辑链接时）
   const cacheIconForLink = async (iconUrl: string): Promise<string> => {
     try {
-      const response = await fetch(iconUrl);
+      // 通过后端代理获取图标，避免 CORS 问题
+      const response = await fetch(`/api/icon?url=${encodeURIComponent(iconUrl)}`);
       if (!response.ok) {
         console.error('Failed to fetch icon:', response.status);
         return iconUrl;
       }
-      const blob = await response.blob();
-      if (!blob.type.startsWith('image/')) {
-        console.error('Not an image:', blob.type);
-        return iconUrl;
+      const data = await response.json();
+      if (data.dataUrl) {
+        return data.dataUrl;
       }
-      const reader = new FileReader();
-      return new Promise((resolve) => {
-        reader.onloadend = () => {
-          resolve(reader.result as string);
-        };
-        reader.onerror = () => resolve(iconUrl); // 失败时返回原始 URL
-        reader.readAsDataURL(blob);
-      });
+      return iconUrl;
     } catch (e) {
       console.error('cacheIconForLink error:', e);
       return iconUrl; // 失败时返回原始 URL
@@ -437,7 +430,7 @@ function App() {
   const cacheMissingIcons = async (linksToCache: LinkItem[]) => {
     for (const link of linksToCache) {
       if (link.icon && link.icon.includes('favicon.org.cn')) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 300)); // 增加延迟避免请求过快
         const base64data = await cacheIconForLink(link.icon);
         if (base64data !== link.icon) {
           const updatedLinks = links.map(l => l.id === link.id ? { ...l, icon: base64data } : l);
