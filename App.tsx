@@ -921,10 +921,17 @@ function App() {
   const handleEditLink = async (data: Omit<LinkItem, 'id' | 'createdAt'>) => {
     if (!editingLink) return;
 
-    // 更新链接，使用原始图标URL
+    // 更新链接，保留原始的 base64 图标
+    const originalLink = links.find(l => l.id === editingLink.id);
     const updated = links.map(l => {
         if (l.id === editingLink.id) {
             const newLink = { ...l, ...data };
+
+            // 如果原始链接有 base64 图标，且编辑时没有修改图标字段，则保留原始图标
+            if (originalLink && originalLink.icon && originalLink.icon.startsWith('data:image') && !data.icon) {
+                newLink.icon = originalLink.icon;
+            }
+
             // 如果从未置顶变为置顶，设置初始 pinnedOrder
             if (newLink.pinned && l.pinnedOrder === undefined) {
                 const maxPinnedOrder = links.reduce((max, link) => {
