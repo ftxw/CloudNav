@@ -1050,6 +1050,7 @@ function App() {
       {/* Right Click Context Menu */}
       {contextMenu && (
           <div
+             key="context-menu"
              ref={contextMenuRef}
              className="fixed z-[9999] bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-100 dark:border-slate-600 w-44 py-2 flex flex-col animate-in fade-in zoom-in duration-100 overflow-hidden"
              style={{ top: contextMenu.y, left: contextMenu.x }}
@@ -1417,6 +1418,7 @@ function App() {
       {/* Category Context Menu */}
       {categoryContextMenu && authToken && (
         <div
+          key="category-context-menu"
           ref={categoryContextMenuRef}
           className="fixed z-[9999] bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 w-48 py-2 flex flex-col animate-in fade-in zoom-in duration-100"
           style={{ top: categoryContextMenu.y, left: categoryContextMenu.x, position: 'fixed' }}
@@ -1469,6 +1471,7 @@ function App() {
       {/* Category Section Context Menu (for empty space) */}
       {categorySectionMenu && authToken && (
         <div
+          key="category-section-menu"
           ref={categorySectionMenuRef}
           className="fixed z-[9999] bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 w-40 py-2 flex flex-col animate-in fade-in zoom-in duration-100"
           style={{ top: categorySectionMenu.y, left: categorySectionMenu.x, position: 'fixed' }}
