@@ -65,53 +65,13 @@ export async function onRequest(context: { request: Request; env: Env }) {
         });
       }
 
-      // 先尝试读取新结构
-      let linksData, categoriesData, settingsData, iconsData;
-
-      try {
-        [linksData, categoriesData, settingsData, iconsData] = await Promise.all([
-          kv.get('app_data:links', 'json').catch(() => null),
-          kv.get('app_data:categories', 'json').catch(() => null),
-          kv.get('app_data:settings', 'json').catch(() => null),
-          kv.get('app_data:icons', 'json').catch(() => null)
-        ]);
-      } catch (e) {
-        // 读取失败，尝试旧结构
-      }
-
-      // 如果新结构没有数据，尝试从旧结构迁移
-      if (!linksData && !categoriesData) {
-        try {
-          const oldData = await kv.get('app_data', 'json');
-          if (oldData && (oldData.links || oldData.categories)) {
-            // 提取图标数据
-            const iconsMap: Record<string, string> = {};
-            const linksWithoutIcons = (oldData.links || []).map((link: any) => {
-              if (link.icon && link.icon.startsWith('data:image')) {
-                iconsMap[link.id] = link.icon;
-                return { ...link, icon: '' };
-              }
-              return link;
-            });
-
-            // 写入新结构
-            await Promise.all([
-              kv.put('app_data:links', JSON.stringify(linksWithoutIcons)),
-              kv.put('app_data:categories', JSON.stringify(oldData.categories || [])),
-              oldData.settings ? kv.put('app_data:settings', JSON.stringify(oldData.settings)) : Promise.resolve(),
-              Object.keys(iconsMap).length > 0 ? kv.put('app_data:icons', JSON.stringify(iconsMap)) : Promise.resolve()
-            ]);
-
-            // 使用迁移后的数据
-            linksData = linksWithoutIcons;
-            categoriesData = oldData.categories || [];
-            settingsData = oldData.settings || null;
-            iconsData = iconsMap;
-          }
-        } catch (e) {
-          // 旧结构也没有数据，使用默认值
-        }
-      }
+      // 并行读取四个独立的键
+      const [linksData, categoriesData, settingsData, iconsData] = await Promise.all([
+        kv.get('app_data:links', 'json').catch(() => []),
+        kv.get('app_data:categories', 'json').catch(() => []),
+        kv.get('app_data:settings', 'json').catch(() => null),
+        kv.get('app_data:icons', 'json').catch(() => null)
+      ]);
 
       const data: AppData = {
         links: linksData || [],
