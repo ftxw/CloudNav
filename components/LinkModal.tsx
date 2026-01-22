@@ -194,7 +194,7 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
                     ) : initialData ? (
                         title.charAt(0)
                     ) : (
-                        <ImageIcon size={18} />
+                        <ImageIcon size={18} className="text-slate-400 dark:text-slate-500" />
                     )}
                  </div>
 
