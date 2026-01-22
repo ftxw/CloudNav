@@ -90,6 +90,7 @@ function App() {
       return initialSettings;
   };
   const initialSettings = (typeof window !== 'undefined' && (window as any).__CLOUDNAV_INITIAL_DATA__) || getInitialSettings();
+  console.log('Initial settings:', initialSettings);
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(initialSettings);
   const titleInitializedRef = useRef(false);
   const [dataLoaded, setDataLoaded] = useState(false);
@@ -514,7 +515,8 @@ function App() {
       console.log('Title effect triggered:', {
           dataLoaded,
           titleInitialized: titleInitializedRef.current,
-          siteSettingsTitle: siteSettings.title
+          siteSettingsTitle: siteSettings.title,
+          documentTitle: document.title
       });
       // 标题更新逻辑 - 数据加载完成后设置标题
       // 如果标题为空，则使用默认标题
