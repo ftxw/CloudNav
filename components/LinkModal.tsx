@@ -25,8 +25,8 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
   const [isGenerating, setIsGenerating] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState('');
 
-  // 预览图标：始终显示原有图标（编辑时）或当前 iconUrl（新添加/修改时）
-  const previewIcon = initialData && !iconUrl ? initialData.icon : iconUrl;
+  // 预览图标：编辑时显示原有图标，添加时显示当前 iconUrl（如果有的话）
+  const previewIcon = initialData ? (iconUrl || initialData.icon) : iconUrl;
 
   useEffect(() => {
     if (isOpen) {
