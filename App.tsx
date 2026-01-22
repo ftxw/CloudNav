@@ -439,7 +439,7 @@ function App() {
                 'Content-Type': 'application/json',
                 'x-auth-password': token
             },
-            body: JSON.stringify({ links: newLinks, categories: newCategories, settings: newSettings })
+            body: JSON.stringify({ links: newLinks, categories: newCategories, settings: newSettings, iconCache })
         });
 
         if (response.status === 401) {
