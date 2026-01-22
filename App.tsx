@@ -71,18 +71,27 @@ function App() {
 
   const [darkMode, setDarkMode] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  
-  // Site Settings - Use global initial data if available
-  const initialSettings = (typeof window !== 'undefined' && (window as any).__CLOUDNAV_INITIAL_DATA__) || {
-      title: '',
-      navTitle: '云航 CloudNav',
-      favicon: '',
-      cardStyle: 'detailed'
+
+  // Site Settings - 从 localStorage 读取初始数据，如果没有则使用默认值
+  const getInitialSettings = (): SiteSettings => {
+      const defaultSettings = {
+          title: 'CloudNav - 我的导航',
+          navTitle: '云航 CloudNav',
+          favicon: '',
+          cardStyle: 'detailed'
+      };
+      try {
+          const stored = localStorage.getItem('cloudnav_data_cache');
+          if (stored) {
+              const data = JSON.parse(stored);
+              return { ...defaultSettings, ...(data.settings || {}) };
+          }
+      } catch (e) {}
+      return defaultSettings;
   };
+  const initialSettings = (typeof window !== 'undefined' && (window as any).__CLOUDNAV_INITIAL_DATA__) || getInitialSettings();
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(initialSettings);
   const titleInitializedRef = useRef(false);
-  const dataLoadedRef = useRef(false);
-  const DEFAULT_TITLE = 'CloudNav - 我的导航';
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
