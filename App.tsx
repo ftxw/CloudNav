@@ -1558,8 +1558,10 @@ function App() {
                     // Right-click was on empty space
                     let x = e.clientX;
                     let y = e.clientY;
-                    if (x + 200 > window.innerWidth) x = window.innerWidth - 210;
-                    if (y + 180 > window.innerHeight) y = window.innerHeight - 190;
+                    if (x + 160 > window.innerWidth) x = window.innerWidth - 170;
+                    // Adjust y position if menu would be cut off at bottom
+                    const menuHeight = 100; // Approximate menu height
+                    if (y + menuHeight > window.innerHeight) y = window.innerHeight - menuHeight - 10;
                     // Determine if click is in pinned section or category section
                     const targetElement = e.target as HTMLElement;
                     const section = targetElement.closest('section');
