@@ -891,9 +891,10 @@ function App() {
     setPrefillLink(undefined);
 
     // 后台异步转换图标（不阻塞UI，不触发重新渲染）
-    if (newLink.icon && newLink.icon.includes('favicon.org.cn')) {
+    // 任何 http:// 或 https:// 开头的图标 URL 都转换为 base64
+    if (newLink.icon && (newLink.icon.startsWith('http://') || newLink.icon.startsWith('https://'))) {
       cacheIconForLink(newLink.icon).then(base64data => {
-        if (base64data !== newLink.icon) {
+        if (base64data && base64data !== newLink.icon) {
           // 只更新本地图标缓存，不更新 links 状态（避免闪烁）
           requestAnimationFrame(() => {
             const iconCache = JSON.parse(localStorage.getItem(ICON_CACHE_KEY) || '{}');
@@ -947,9 +948,10 @@ function App() {
     setEditingLink(undefined);
 
     // 后台异步转换图标（不阻塞UI，不触发重新渲染）
-    if (data.icon && data.icon.includes('favicon.org.cn')) {
+    // 任何 http:// 或 https:// 开头的图标 URL 都转换为 base64
+    if (data.icon && (data.icon.startsWith('http://') || data.icon.startsWith('https://'))) {
       cacheIconForLink(data.icon).then(base64data => {
-        if (base64data !== data.icon) {
+        if (base64data && base64data !== data.icon) {
           // 只更新本地图标缓存，不更新 links 状态（避免闪烁）
           requestAnimationFrame(() => {
             const iconCache = JSON.parse(localStorage.getItem(ICON_CACHE_KEY) || '{}');
