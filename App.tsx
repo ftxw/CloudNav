@@ -107,6 +107,22 @@ function App() {
       return initialSettings;
   };
   const initialSettings = (typeof window !== 'undefined' && (window as any).__CLOUDNAV_INITIAL_DATA__) || getInitialSettings();
+
+  // 立即设置标题和 favicon，不等待数据加载
+  if (typeof window !== 'undefined') {
+      const cachedTitle = initialSettings.title;
+      if (cachedTitle && document.title !== cachedTitle) {
+          document.title = cachedTitle;
+      }
+      const cachedFavicon = initialSettings.favicon;
+      if (cachedFavicon) {
+          const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+          if (link && link.href !== cachedFavicon) {
+              link.href = cachedFavicon;
+          }
+      }
+  }
+
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(initialSettings);
   const [dataLoaded, setDataLoaded] = useState(false);
   const DEFAULT_TITLE = 'CloudNav - 我的导航';
@@ -877,31 +893,29 @@ function App() {
     updateData([newLink, ...links], categories);
     setPrefillLink(undefined);
 
-    // 后台异步转换图标（不阻塞UI）
+    // 后台异步转换图标（不阻塞UI，不触发重新渲染）
     if (newLink.icon && newLink.icon.includes('favicon.org.cn')) {
       cacheIconForLink(newLink.icon).then(base64data => {
         if (base64data !== newLink.icon) {
-          // 更新本地图标缓存
-          const iconCache = JSON.parse(localStorage.getItem(ICON_CACHE_KEY) || '{}');
-          iconCache[newLink.id] = base64data;
-          localStorage.setItem(ICON_CACHE_KEY, JSON.stringify(iconCache));
+          // 只更新本地图标缓存，不更新 links 状态（避免闪烁）
+          requestAnimationFrame(() => {
+            const iconCache = JSON.parse(localStorage.getItem(ICON_CACHE_KEY) || '{}');
+            iconCache[newLink.id] = base64data;
+            localStorage.setItem(ICON_CACHE_KEY, JSON.stringify(iconCache));
 
-          // 静默更新链接图标
-          const updatedLinks = links.map(l => l.id === newLink.id ? { ...l, icon: base64data } : l);
-          setLinks(updatedLinks);
+            // 异步更新主数据（包含图标数据）并同步到云端
+            const cachedData = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '{}');
+            const updatedCloudLinks = (cachedData.links || INITIAL_LINKS).map(l =>
+              l.id === newLink.id ? { ...l, icon: base64data } : l
+            );
+            const newData = { ...cachedData, links: updatedCloudLinks };
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newData));
 
-          // 更新主数据（包含图标数据）并同步到云端
-          const cachedData = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '{}');
-          const updatedCloudLinks = (cachedData.links || INITIAL_LINKS).map(l =>
-            l.id === newLink.id ? { ...l, icon: base64data } : l
-          );
-          const newData = { ...cachedData, links: updatedCloudLinks };
-          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newData));
-
-          // 触发一次静默的云端同步
-          if (authToken) {
-            syncToCloud(updatedCloudLinks, categories, siteSettings, authToken);
-          }
+            // 触发一次静默的云端同步
+            if (authToken) {
+              syncToCloud(updatedCloudLinks, categories, siteSettings, authToken);
+            }
+          });
         }
       });
     }
@@ -928,31 +942,29 @@ function App() {
     updateData(updated, categories);
     setEditingLink(undefined);
 
-    // 后台异步转换图标（不阻塞UI）
+    // 后台异步转换图标（不阻塞UI，不触发重新渲染）
     if (data.icon && data.icon.includes('favicon.org.cn')) {
       cacheIconForLink(data.icon).then(base64data => {
         if (base64data !== data.icon) {
-          // 更新本地图标缓存
-          const iconCache = JSON.parse(localStorage.getItem(ICON_CACHE_KEY) || '{}');
-          iconCache[editingLink.id] = base64data;
-          localStorage.setItem(ICON_CACHE_KEY, JSON.stringify(iconCache));
+          // 只更新本地图标缓存，不更新 links 状态（避免闪烁）
+          requestAnimationFrame(() => {
+            const iconCache = JSON.parse(localStorage.getItem(ICON_CACHE_KEY) || '{}');
+            iconCache[editingLink.id] = base64data;
+            localStorage.setItem(ICON_CACHE_KEY, JSON.stringify(iconCache));
 
-          // 静默更新链接图标
-          const updatedLinks = links.map(l => l.id === editingLink.id ? { ...l, icon: base64data } : l);
-          setLinks(updatedLinks);
+            // 异步更新主数据（包含图标数据）并同步到云端
+            const cachedData = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '{}');
+            const updatedCloudLinks = (cachedData.links || INITIAL_LINKS).map(l =>
+              l.id === editingLink.id ? { ...l, icon: base64data } : l
+            );
+            const newData = { ...cachedData, links: updatedCloudLinks };
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newData));
 
-          // 更新主数据（包含图标数据）并同步到云端
-          const cachedData = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '{}');
-          const updatedCloudLinks = (cachedData.links || INITIAL_LINKS).map(l =>
-            l.id === editingLink.id ? { ...l, icon: base64data } : l
-          );
-          const newData = { ...cachedData, links: updatedCloudLinks };
-          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newData));
-
-          // 触发一次静默的云端同步
-          if (authToken) {
-            syncToCloud(updatedCloudLinks, categories, siteSettings, authToken);
-          }
+            // 触发一次静默的云端同步
+            if (authToken) {
+              syncToCloud(updatedCloudLinks, categories, siteSettings, authToken);
+            }
+          });
         }
       });
     }
