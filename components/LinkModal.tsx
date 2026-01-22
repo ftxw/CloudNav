@@ -24,8 +24,8 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
   const [pinned, setPinned] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // New State for Icon Auto-fetch
-  const [autoFetchIcon, setAutoFetchIcon] = useState(true);
+  // Icon State
+  const [iconUrl, setIconUrl] = useState('');
 
   const [duplicateWarning, setDuplicateWarning] = useState('');
 
@@ -37,14 +37,8 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
         setDescription(initialData.description || '');
         setCategoryId(initialData.categoryId);
         setPinned(initialData.pinned || false);
-        // Check if icon uses old API format (direct favicon.ico) and auto-fetch new icon
-        if (initialData.icon && !initialData.icon.includes('favicon.org.cn')) {
-            setIconUrl(''); // Clear old icon
-            setAutoFetchIcon(false); // Will not auto-fetch to avoid clearing user's manual icon
-        } else {
-            setIconUrl(initialData.icon);
-            setAutoFetchIcon(true);
-        }
+        // 直接使用链接的图标，不做任何转换
+        setIconUrl(initialData.icon || '');
       } else {
         setTitle('');
         setUrl('');
@@ -52,18 +46,10 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
         setDescription('');
         setCategoryId(defaultCategoryId || categories[0]?.id || 'common');
         setPinned(false);
-        setAutoFetchIcon(true);
       }
       setDuplicateWarning('');
     }
   }, [isOpen, initialData, defaultCategoryId, categories]);
-
-  // Auto-fetch icon when url changes in edit mode if using old icon format
-  useEffect(() => {
-    if (isOpen && initialData && autoFetchIcon && url && initialData.icon && !initialData.icon.includes('favicon.org.cn')) {
-        fetchIconFromUrl(url);
-    }
-  }, [isOpen, url, autoFetchIcon, initialData]);
 
   // Logic to fetch icon
   const fetchIconFromUrl = (targetUrl: string) => {
@@ -85,14 +71,14 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
 
   const handleUrlBlur = () => {
       if (!url) return;
-      
+
       let normalizedUrl = url;
       if (!url.startsWith('http')) {
           normalizedUrl = 'https://' + url;
           setUrl(normalizedUrl);
       }
 
-      // 1. Check Duplicate
+      // Check Duplicate
       if (existingLinks && !initialData) {
           const exists = existingLinks.some(l => {
               const u1 = l.url.replace(/\/$/, '').toLowerCase();
@@ -104,11 +90,6 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
           } else {
               setDuplicateWarning('');
           }
-      }
-
-      // 2. Auto fetch icon if enabled
-      if (autoFetchIcon) {
-          fetchIconFromUrl(normalizedUrl);
       }
   };
 
@@ -193,28 +174,28 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
             />
           </div>
 
-          {/* Icon Section - Redesigned */}
+          {/* Icon Section */}
           <div>
              <label className="block text-sm font-medium mb-1 dark:text-slate-300">图标 URL</label>
              <div className="flex gap-2">
-                 {/* Preview */}
+                 {/* Preview - 与链接卡片上的图标状态同步，直接根据 iconUrl 显示 */}
                  <div className="shrink-0 w-10 h-10 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 flex items-center justify-center overflow-hidden">
                     {iconUrl ? (
-                         <img 
-                            src={iconUrl} 
+                         <img
+                            src={iconUrl}
+                            alt=""
                             className="w-full h-full object-contain"
                             onError={(e) => {
                                 e.currentTarget.style.display='none';
-                                setIconUrl('');
                             }}
                          />
                     ) : (
                         <ImageIcon size={18} className="text-slate-400"/>
                     )}
                  </div>
-                 
+
                  {/* Input */}
-                 <input 
+                 <input
                     type="text"
                     value={iconUrl}
                     onChange={(e) => setIconUrl(e.target.value)}
@@ -230,20 +211,6 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
                  >
                     <Wand2 size={14} /> 获取图标
                  </button>
-             </div>
-             
-             {/* Checkbox */}
-             <div className="mt-2 flex items-center gap-2">
-                <input 
-                    type="checkbox" 
-                    id="autoFetch"
-                    checked={autoFetchIcon}
-                    onChange={(e) => setAutoFetchIcon(e.target.checked)}
-                    className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
-                />
-                <label htmlFor="autoFetch" className="text-sm text-slate-600 dark:text-slate-400 cursor-pointer select-none">
-                    自动获取 URL 链接的图标
-                </label>
              </div>
           </div>
 
