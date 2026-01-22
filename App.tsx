@@ -562,13 +562,11 @@ function App() {
 
       // 任何点击（左键或右键）都关闭右键菜单
       window.addEventListener('click', handleClickOutside);
-      window.addEventListener('mousedown', handleClickOutside);
       window.addEventListener('scroll', handleScroll, true);
       window.addEventListener('contextmenu', handleContextMenu);
 
       return () => {
           window.removeEventListener('click', handleClickOutside);
-          window.removeEventListener('mousedown', handleClickOutside);
           window.removeEventListener('scroll', handleScroll, true);
           window.removeEventListener('contextmenu', handleContextMenu);
       }
