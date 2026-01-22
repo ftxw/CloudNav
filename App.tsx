@@ -92,7 +92,7 @@ function App() {
   const initialSettings = (typeof window !== 'undefined' && (window as any).__CLOUDNAV_INITIAL_DATA__) || getInitialSettings();
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(initialSettings);
   const titleInitializedRef = useRef(false);
-  const dataLoadedRef = useRef(false);
+  const [dataLoaded, setDataLoaded] = useState(false);
   const [debugInfo, setDebugInfo] = useState({ titleInitialized: false, dataLoaded: false });
   const DEFAULT_TITLE = 'CloudNav - 我的导航';
 
@@ -457,7 +457,7 @@ function App() {
                     if (data.settings) {
                         setSiteSettings(prev => ({ ...prev, ...data.settings }));
                     }
-                    dataLoadedRef.current = true;
+                    setDataLoaded(true);
                     setDebugInfo(prev => ({ ...prev, dataLoaded: true }));
                     console.log('Data loaded from cloud, titleInitializedRef:', titleInitializedRef.current);
                     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
@@ -469,7 +469,7 @@ function App() {
         }
         console.log('Loading from local storage');
         loadFromLocal();
-        dataLoadedRef.current = true;
+        setDataLoaded(true);
         setDebugInfo(prev => ({ ...prev, dataLoaded: true }));
     };
 
@@ -478,13 +478,13 @@ function App() {
 
   useEffect(() => {
       console.log('Title effect triggered:', {
-          dataLoaded: dataLoadedRef.current,
+          dataLoaded,
           titleInitialized: titleInitializedRef.current,
           siteSettingsTitle: siteSettings.title
       });
       // 标题更新逻辑 - 数据加载完成后设置标题
       // 如果标题为空，则使用默认标题
-      if (dataLoadedRef.current && !titleInitializedRef.current) {
+      if (dataLoaded && !titleInitializedRef.current) {
           const finalTitle = siteSettings.title || DEFAULT_TITLE;
           console.log('Setting title:', finalTitle, 'siteSettings.title:', siteSettings.title);
           document.title = finalTitle;
@@ -496,7 +496,7 @@ function App() {
       if (link && siteSettings.favicon && link.href !== siteSettings.favicon) {
           link.href = siteSettings.favicon;
       }
-  }, [siteSettings.title, siteSettings.favicon]);
+  }, [siteSettings.title, siteSettings.favicon, dataLoaded]);
 
   useEffect(() => {
       // 关闭所有菜单的统一处理函数
