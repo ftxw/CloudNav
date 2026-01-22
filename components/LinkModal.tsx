@@ -179,7 +179,7 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
           <div>
              <label className="block text-sm font-medium mb-1 dark:text-slate-300">图标 URL</label>
              <div className="flex gap-2">
-                 {/* Preview - 与链接卡片使用相同的显示逻辑 */}
+                 {/* Preview - 添加时默认显示 Image 图标，编辑时与卡片图标保持一致 */}
                  <div className="shrink-0 w-10 h-10 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold uppercase overflow-hidden">
                     {previewIcon ? (
                          <img
@@ -191,6 +191,8 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
                                 e.currentTarget.parentElement!.innerText = title.charAt(0);
                             }}
                          />
+                    ) : initialData ? (
+                        title.charAt(0)
                     ) : (
                         <ImageIcon size={18} />
                     )}
