@@ -532,9 +532,6 @@ function App() {
                     if (data.settings) {
                         setSiteSettings(prev => ({ ...prev, ...data.settings }));
                     }
-                    if (data.iconCache) {
-                        setIconCache(data.iconCache);
-                    }
                     setDataLoaded(true);
                     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
                     // 缓存缺失的图标
@@ -560,9 +557,6 @@ function App() {
                     setCategories(data.categories || DEFAULT_CATEGORIES);
                     if (data.settings) {
                         setSiteSettings(prev => ({ ...prev, ...data.settings }));
-                    }
-                    if (data.iconCache) {
-                        setIconCache(data.iconCache);
                     }
                     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
                     // 缓存缺失的图标
@@ -596,13 +590,13 @@ function App() {
   useEffect(() => {
       if (dataLoaded && links.length > 0) {
           const linksToCache = links.filter(l =>
-              l.icon && l.icon.includes('favicon.org.cn') && !iconCache[l.id]
+              l.icon && l.icon.includes('favicon.org.cn')
           );
           if (linksToCache.length > 0) {
               cacheMissingIcons(linksToCache);
           }
       }
-  }, [dataLoaded, links, iconCache]);
+  }, [dataLoaded, links]);
 
   useEffect(() => {
       // 关闭所有菜单的统一处理函数
