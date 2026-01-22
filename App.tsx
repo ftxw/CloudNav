@@ -1716,9 +1716,14 @@ function App() {
                     if (y + 180 > window.innerHeight) y = window.innerHeight - 190;
                     // Determine if click is in pinned section or category section
                     const targetElement = e.target as HTMLElement;
-                    const pinnedSection = targetElement.closest('section')?.querySelector('h2')?.textContent?.includes('置顶 / 常用') ?? false;
+                    const section = targetElement.closest('section');
+                    const pinnedSection = section?.querySelector('h2')?.textContent?.includes('置顶 / 常用') ?? false;
                     if (pinnedSection) {
                         setCategorySectionMenu({ x, y, categoryId: 'pinned' });
+                    } else if (section && section.id?.startsWith('cat-')) {
+                        // Extract category ID from section id (cat-{categoryId})
+                        const categoryId = section.id.replace('cat-', '');
+                        setCategorySectionMenu({ x, y, categoryId });
                     } else if (activeCategory !== 'all') {
                         setCategorySectionMenu({ x, y, categoryId: activeCategory });
                     }
