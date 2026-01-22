@@ -90,11 +90,8 @@ function App() {
       return initialSettings;
   };
   const initialSettings = (typeof window !== 'undefined' && (window as any).__CLOUDNAV_INITIAL_DATA__) || getInitialSettings();
-  console.log('Initial settings:', initialSettings);
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(initialSettings);
-  const titleInitializedRef = useRef(false);
   const [dataLoaded, setDataLoaded] = useState(false);
-  const [debugInfo, setDebugInfo] = useState({ titleInitialized: false, dataLoaded: false });
   const DEFAULT_TITLE = 'CloudNav - 我的导航';
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -449,10 +446,8 @@ function App() {
         // 先检查本地是否有数据
         const hasLocalData = localStorage.getItem(LOCAL_STORAGE_KEY);
         if (hasLocalData) {
-            console.log('Loading from local storage (cached)');
-            loadFromLocal();
-            setDataLoaded(true);
-            setDebugInfo(prev => ({ ...prev, dataLoaded: true }));
+        loadFromLocal();
+        setDataLoaded(true);
             // 在后台尝试同步云端数据
             syncFromCloudInBackground();
             return;
@@ -472,8 +467,6 @@ function App() {
                         setSiteSettings(prev => ({ ...prev, ...data.settings }));
                     }
                     setDataLoaded(true);
-                    setDebugInfo(prev => ({ ...prev, dataLoaded: true }));
-                    console.log('Data loaded from cloud, titleInitializedRef:', titleInitializedRef.current);
                     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
                     return;
                 }
@@ -481,10 +474,8 @@ function App() {
         } catch (e) {
             console.warn("Failed to fetch from cloud, falling back to local.", e);
         }
-        console.log('Loading from local storage (fallback)');
         loadFromLocal();
         setDataLoaded(true);
-        setDebugInfo(prev => ({ ...prev, dataLoaded: true }));
     };
 
     // 后台同步云端数据
@@ -493,7 +484,6 @@ function App() {
             const res = await fetch('/api/storage');
             if (res.ok) {
                 const data = await res.json();
-                console.log('Cloud data synced in background:', data);
                 if (data && (data.links || data.settings)) {
                     setLinks(data.links || INITIAL_LINKS);
                     setCategories(data.categories || DEFAULT_CATEGORIES);
@@ -512,23 +502,11 @@ function App() {
   }, []);
 
   useEffect(() => {
-      console.log('Title effect triggered:', {
-          dataLoaded,
-          titleInitialized: titleInitializedRef.current,
-          siteSettingsTitle: siteSettings.title,
-          documentTitle: document.title
-      });
       // 标题更新逻辑 - 数据加载完成后设置标题
-      // 如果标题为空，则使用默认标题
       if (dataLoaded) {
           const finalTitle = siteSettings.title || DEFAULT_TITLE;
           if (document.title !== finalTitle) {
-              console.log('Setting title:', finalTitle, 'siteSettings.title:', siteSettings.title);
               document.title = finalTitle;
-              if (!titleInitializedRef.current) {
-                  titleInitializedRef.current = true;
-                  setDebugInfo(prev => ({ ...prev, titleInitialized: true }));
-              }
           }
       }
       // favicon 更新逻辑
