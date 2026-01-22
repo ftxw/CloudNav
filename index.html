@@ -20,6 +20,12 @@
           }
         } catch (e) {}
         var finalSettings = customSettings ? { ...initialSettings, ...customSettings } : initialSettings;
+        // 立即设置页面标题，避免显示网址
+        if (finalSettings.title) {
+          document.title = finalSettings.title;
+        } else {
+          document.title = 'CloudNav - 我的导航';
+        }
         // 保存初始数据供 React 使用
         window.__CLOUDNAV_INITIAL_DATA__ = finalSettings;
       })();
