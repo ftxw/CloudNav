@@ -522,19 +522,15 @@ function App() {
         setSyncStatus('saved');
         setTimeout(() => setSyncStatus('idle'), 2000);
 
-        // 同步成功后，更新本地缓存的时间戳
+        // 同步成功后，从 POST 响应中获取时间戳并更新本地缓存
         try {
-            const res = await fetch('/api/storage');
-            if (res.ok) {
-                const cloudData = await res.json();
-                if (cloudData.timestamp) {
-                    // 更新本地缓存的时间戳
-                    const localDataStr = localStorage.getItem(LOCAL_STORAGE_KEY);
-                    if (localDataStr) {
-                        const localData = JSON.parse(localDataStr);
-                        localData.timestamp = cloudData.timestamp;
-                        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(localData));
-                    }
+            const responseData = await response.json();
+            if (responseData.timestamp) {
+                const localDataStr = localStorage.getItem(LOCAL_STORAGE_KEY);
+                if (localDataStr) {
+                    const localData = JSON.parse(localDataStr);
+                    localData.timestamp = responseData.timestamp;
+                    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(localData));
                 }
             }
         } catch (e) {
