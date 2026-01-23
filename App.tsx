@@ -582,19 +582,19 @@ function App() {
     }
 
     const initData = async () => {
-        // 无论本地是否有数据，都先尝试从云端获取数据
+        // 从云端获取时间戳和数据
         try {
             const res = await fetch('/api/storage');
             if (res.ok) {
                 const cloudData = await res.json();
+                const cloudTimestamp = cloudData.timestamp || 0;
 
-                // hasKeys 标记表示 KV 存储中是否有键（即使值为空）
-                // 如果 hasKeys 为 false，说明是首次部署，后端会自动创建初始数据
-                const isFirstDeployment = !cloudData.hasKeys;
+                // 获取本地缓存的时间戳
+                const localDataStr = localStorage.getItem(LOCAL_STORAGE_KEY);
+                const localTimestamp = localDataStr ? (JSON.parse(localDataStr).timestamp || 0) : 0;
 
-                if (isFirstDeployment) {
-                    // 首次部署，后端会自动创建并返回初始数据
-                    // 直接使用后端返回的数据（此时后端已写入初始数据）
+                // 对比时间戳，如果不一致则使用云端数据
+                if (cloudTimestamp !== localTimestamp) {
                     setLinks(cloudData.links || []);
                     setCategories(cloudData.categories || []);
                     setSiteSettings(cloudData.settings || {
@@ -603,90 +603,34 @@ function App() {
                         favicon: '',
                         cardStyle: 'detailed'
                     });
-                    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cloudData));
-                    setDataLoaded(true);
-                    // 缓存缺失的图标
-                    cacheMissingIcons(cloudData.links || []);
-                    return;
-                }
-
-                // 云端有键（可能是用户清空了数据，也可能是正常数据）
-                // 对比本地缓存
-                const localDataStr = localStorage.getItem(LOCAL_STORAGE_KEY);
-                let localData = null;
-                if (localDataStr) {
-                    try {
-                        localData = JSON.parse(localDataStr);
-                    } catch (e) {}
-                }
-
-                // 比较云端和本地数据是否一致
-                const isDataDifferent = !localData ||
-                    JSON.stringify(cloudData.links || []) !== JSON.stringify(localData.links || []) ||
-                    JSON.stringify(cloudData.categories || []) !== JSON.stringify(localData.categories || []) ||
-                    JSON.stringify(cloudData.settings || {}) !== JSON.stringify(localData.settings || {});
-
-                if (isDataDifferent) {
-                    // 数据不一致，使用云端数据并更新本地缓存
-                    setLinks(cloudData.links || []);
-                    setCategories(cloudData.categories || []);
-                    // 完全使用云端 settings，不合并本地数据
-                    if (cloudData.settings) {
-                        setSiteSettings(cloudData.settings);
+                    if (cloudData.aiConfig) {
+                        setAiConfig(cloudData.aiConfig);
+                        localStorage.setItem(AI_CONFIG_KEY, JSON.stringify(cloudData.aiConfig));
+                    }
+                    if (cloudData.searchEngines) {
+                        setExternalEngines(cloudData.searchEngines);
+                        localStorage.setItem(SEARCH_ENGINES_KEY, JSON.stringify(cloudData.searchEngines));
                     }
                     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cloudData));
-                    setDataLoaded(true);
-                    // 缓存缺失的图标
                     cacheMissingIcons(cloudData.links || []);
                 } else {
-                    // 数据一致，使用本地缓存
+                    // 时间戳一致，使用本地缓存
                     loadFromLocal();
-                    setDataLoaded(true);
                 }
+                setDataLoaded(true);
                 return;
             }
         } catch (e) {
             // 云端请求失败，使用本地数据
         }
 
-        // 云端请求失败，使用本地数据
         loadFromLocal();
         setDataLoaded(true);
-    };
-
-    // 后台同步云端数据（仅在首次加载时使用）
-    const syncFromCloudInBackground = async () => {
-        try {
-            const res = await fetch('/api/storage');
-            if (res.ok) {
-                const data = await res.json();
-                if (data && (data.links || data.settings)) {
-                    // 从云端获取数据后，合并本地图标缓存
-                    const iconCache = JSON.parse(localStorage.getItem(ICON_CACHE_KEY) || '{}');
-                    const linksWithCachedIcons = (data.links || INITIAL_LINKS).map(link => ({
-                      ...link,
-                      icon: iconCache[link.id] || link.icon
-                    }));
-
-                    setLinks(linksWithCachedIcons);
-                    setCategories(data.categories || DEFAULT_CATEGORIES);
-                    if (data.settings) {
-                        setSiteSettings(prev => ({ ...prev, ...data.settings }));
-                    }
-                    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
-                    // 缓存缺失的图标
-                    cacheMissingIcons(linksWithCachedIcons);
-                }
-            }
-        } catch (e) {
-            // Ignore errors silently
-        }
     };
 
     initData();
   }, []);
 
-  // 删除 syncFromCloudInBackground 函数，因为我们已经在 initData 中处理了云端数据同步
 
   useEffect(() => {
       // 标题更新逻辑 - 数据加载完成后设置标题
@@ -1056,12 +1000,10 @@ function App() {
               link.href = newSiteSettings.favicon;
           }
       }
-      if (authToken) {
-          updateData(links, categories, newSiteSettings);
-      } else {
-          setSiteSettings(newSiteSettings);
-          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ links, categories, settings: newSiteSettings }));
-      }
+      setSiteSettings(newSiteSettings);
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ links, categories, settings: newSiteSettings }));
+      // 同步到云端（无论是否登录都尝试）
+      syncSettingsToCloud(newSiteSettings, config);
   };
 
   const scrollToCategory = (catId: string) => {
@@ -1116,6 +1058,8 @@ function App() {
   const handleUpdateSearchEngines = (newEngines: SearchEngine[]) => {
       setExternalEngines(newEngines);
       localStorage.setItem(SEARCH_ENGINES_KEY, JSON.stringify(newEngines));
+      // 同步到云端（无论是否登录都尝试）
+      syncSearchEnginesToCloud(newEngines);
   };
 
   const isCategoryLocked = (catId: string) => {

@@ -8,6 +8,8 @@ interface AppData {
   links: any[];
   categories: any[];
   settings?: any;
+  aiConfig?: any;
+  searchEngines?: any;
 }
 
 const corsHeaders = {
@@ -66,34 +68,112 @@ export async function onRequest(context: { request: Request; env: Env }) {
         });
       }
 
-      // 并行读取四个独立的键，使用 type: 'text' 来检测键是否存在
-      const [linksRaw, categoriesRaw, settingsRaw, iconsRaw] = await Promise.all([
+      // 读取时间戳
+      const timestampRaw = await kv.get('app_data:timestamp', { type: 'text' }).catch(() => null);
+
+      // 如果没有时间戳键，说明是首次部署，返回初始数据并写入KV
+      if (timestampRaw === null) {
+        const initialSettings = {
+          title: 'CloudNav - 我的导航',
+          navTitle: '云航 CloudNav',
+          favicon: '',
+          cardStyle: 'detailed'
+        };
+
+        const initialAiConfig = {
+          provider: 'gemini',
+          apiKey: '',
+          baseUrl: '',
+          model: 'gemini-2.5-flash'
+        };
+
+        const initialSearchEngines = [
+          { id: 'local', name: '站内', url: '', icon: 'Search' },
+          { id: 'google', name: 'Google', url: 'https://www.google.com/search?q=', icon: 'https://www.google.com/favicon.ico' },
+          { id: 'bing', name: '必应', url: 'https://www.bing.com/search?q=', icon: 'https://www.bing.com/favicon.ico' },
+          { id: 'baidu', name: '百度', url: 'https://www.baidu.com/s?wd=', icon: 'https://www.baidu.com/favicon.ico' },
+          { id: 'github', name: 'GitHub', url: 'https://github.com/search?q=', icon: 'https://github.com/favicon.ico' },
+          { id: 'bilibili', name: 'B站', url: 'https://search.bilibili.com/all?keyword=', icon: 'https://www.bilibili.com/favicon.ico' },
+        ];
+
+        const initialLinks = [
+          { id: '1', title: 'GitHub', url: 'https://github.com', categoryId: 'dev', createdAt: Date.now(), description: '代码托管平台', pinned: true },
+          { id: '2', title: 'React', url: 'https://react.dev', categoryId: 'dev', createdAt: Date.now(), description: '构建Web用户界面的库' },
+          { id: '3', title: 'Tailwind CSS', url: 'https://tailwindcss.com', categoryId: 'design', createdAt: Date.now(), description: '原子化CSS框架' },
+          { id: '4', title: 'ChatGPT', url: 'https://chat.openai.com', categoryId: 'ai', createdAt: Date.now(), description: 'OpenAI聊天机器人', pinned: true },
+          { id: '5', title: 'Gemini', url: 'https://gemini.google.com', categoryId: 'ai', createdAt: Date.now(), description: 'Google DeepMind AI' },
+        ];
+
+        const initialCategories = [
+          { id: 'common', name: '常用推荐', icon: 'Folder' },
+          { id: 'dev', name: '开发工具', icon: 'LayoutPanelLeft' },
+          { id: 'design', name: '设计资源', icon: 'Palette' },
+          { id: 'read', name: '阅读资讯', icon: 'BookOpen' },
+          { id: 'ent', name: '休闲娱乐', icon: 'Gamepad2' },
+          { id: 'ai', name: '人工智能', icon: 'Bot' },
+        ];
+
+        const timestamp = Date.now();
+
+        Promise.all([
+          kv.put('app_data:timestamp', String(timestamp)),
+          kv.put('app_data:links', JSON.stringify(initialLinks)),
+          kv.put('app_data:categories', JSON.stringify(initialCategories)),
+          kv.put('app_data:settings', JSON.stringify(initialSettings)),
+          kv.put('app_data:icons', JSON.stringify({})),
+          kv.put('app_data:ai_config', JSON.stringify(initialAiConfig)),
+          kv.put('app_data:search_engines', JSON.stringify(initialSearchEngines)),
+        ]).catch(err => {
+          console.error('Failed to initialize data:', err);
+        });
+
+        const data: AppData = {
+          links: initialLinks,
+          categories: initialCategories,
+          settings: initialSettings,
+          aiConfig: initialAiConfig,
+          searchEngines: initialSearchEngines,
+          timestamp
+        };
+
+        return new Response(JSON.stringify(data), {
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        });
+      }
+
+      // 有时间戳键，读取所有数据
+      const timestamp = parseInt(timestampRaw || '0', 10);
+
+      const [linksRaw, categoriesRaw, settingsRaw, iconsRaw, aiConfigRaw, searchEnginesRaw] = await Promise.all([
         kv.get('app_data:links', { type: 'text' }).catch(() => null),
         kv.get('app_data:categories', { type: 'text' }).catch(() => null),
         kv.get('app_data:settings', { type: 'text' }).catch(() => null),
-        kv.get('app_data:icons', { type: 'text' }).catch(() => null)
+        kv.get('app_data:icons', { type: 'text' }).catch(() => null),
+        kv.get('app_data:ai_config', { type: 'text' }).catch(() => null),
+        kv.get('app_data:search_engines', { type: 'text' }).catch(() => null)
       ]);
 
-      // 判断键是否存在（即使值为空）
-      const hasLinksKey = linksRaw !== null;
-      const hasCategoriesKey = categoriesRaw !== null;
-      const hasSettingsKey = settingsRaw !== null;
-      const hasAnyKey = hasLinksKey || hasCategoriesKey || hasSettingsKey;
-
-      // 解析 JSON 数据
-      const linksData = hasLinksKey ? (JSON.parse(linksRaw || '[]') || []) : [];
-      const categoriesData = hasCategoriesKey ? (JSON.parse(categoriesRaw || '[]') || []) : [];
-      const settingsData = hasSettingsKey ? (JSON.parse(settingsRaw || 'null') || null) : null;
-      const iconsData = iconsRaw ? JSON.parse(iconsRaw || '{}') : null;
+      const linksData = JSON.parse(linksRaw || '[]') || [];
+      const categoriesData = JSON.parse(categoriesRaw || '[]') || [];
+      const settingsData = JSON.parse(settingsRaw || 'null') || null;
+      const iconsData = JSON.parse(iconsRaw || '{}') || null;
+      const aiConfigData = JSON.parse(aiConfigRaw || 'null') || null;
+      const searchEnginesData = JSON.parse(searchEnginesRaw || '[]') || [];
 
       const data: AppData = {
-        links: linksData || [],
-        categories: categoriesData || [],
-        hasKeys: hasAnyKey  // 添加标记，表示 KV 中是否有键
+        links: linksData,
+        categories: categoriesData,
+        timestamp
       };
 
       if (settingsData) {
         data.settings = settingsData;
+      }
+      if (aiConfigData) {
+        data.aiConfig = aiConfigData;
+      }
+      if (searchEnginesData) {
+        data.searchEngines = searchEnginesData;
       }
 
       // 将图标数据合并到 links 中
@@ -159,12 +239,16 @@ export async function onRequest(context: { request: Request; env: Env }) {
         return link; // 非 base64 图标（如 API URL）保留原样
       });
 
-      // 并行写入四个独立的键
+      // 并行写入所有数据，包括时间戳
+      const timestamp = Date.now();
       await Promise.all([
+        kv.put('app_data:timestamp', String(timestamp)),
         kv.put('app_data:links', JSON.stringify(linksWithoutIcons)),
         kv.put('app_data:categories', JSON.stringify(body.categories || [])),
         body.settings ? kv.put('app_data:settings', JSON.stringify(body.settings)) : Promise.resolve(),
-        Object.keys(iconsData).length > 0 ? kv.put('app_data:icons', JSON.stringify(iconsData)) : Promise.resolve()
+        Object.keys(iconsData).length > 0 ? kv.put('app_data:icons', JSON.stringify(iconsData)) : Promise.resolve(),
+        body.aiConfig ? kv.put('app_data:ai_config', JSON.stringify(body.aiConfig)) : Promise.resolve(),
+        body.searchEngines ? kv.put('app_data:search_engines', JSON.stringify(body.searchEngines)) : Promise.resolve()
       ]);
 
       return new Response(JSON.stringify({ success: true }), {
