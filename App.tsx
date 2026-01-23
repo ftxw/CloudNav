@@ -589,38 +589,24 @@ function App() {
                 const cloudData = await res.json();
 
                 // hasKeys 标记表示 KV 存储中是否有键（即使值为空）
-                // 如果 hasKeys 为 false，说明是首次部署，使用初始数据
-                // 如果 hasKeys 为 true，但数据为空，说明用户清空了数据，保持空状态
+                // 如果 hasKeys 为 false，说明是首次部署，后端会自动创建初始数据
                 const isFirstDeployment = !cloudData.hasKeys;
 
                 if (isFirstDeployment) {
-                    // 首次部署，使用初始数据并上传到云端（无论是否登录）
-                    const initialData = {
-                        links: INITIAL_LINKS,
-                        categories: DEFAULT_CATEGORIES,
-                        settings: siteSettings
-                    };
-                    setLinks(initialData.links);
-                    setCategories(initialData.categories);
-                    setSiteSettings(initialData.settings);
-                    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(initialData));
+                    // 首次部署，后端会自动创建并返回初始数据
+                    // 直接使用后端返回的数据（此时后端已写入初始数据）
+                    setLinks(cloudData.links || []);
+                    setCategories(cloudData.categories || []);
+                    setSiteSettings(cloudData.settings || {
+                        title: 'CloudNav - 我的导航',
+                        navTitle: '云航 CloudNav',
+                        favicon: '',
+                        cardStyle: 'detailed'
+                    });
+                    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cloudData));
                     setDataLoaded(true);
                     // 缓存缺失的图标
-                    cacheMissingIcons(initialData.links);
-
-                    // 尝试上传初始数据到云端（即使没有 authToken 也尝试）
-                    try {
-                        await fetch('/api/storage', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'x-auth-password': authToken || ''
-                            },
-                            body: JSON.stringify(initialData)
-                        });
-                    } catch (e) {
-                        // 上传失败不影响本地使用
-                    }
+                    cacheMissingIcons(cloudData.links || []);
                     return;
                 }
 
@@ -644,8 +630,9 @@ function App() {
                     // 数据不一致，使用云端数据并更新本地缓存
                     setLinks(cloudData.links || []);
                     setCategories(cloudData.categories || []);
+                    // 完全使用云端 settings，不合并本地数据
                     if (cloudData.settings) {
-                        setSiteSettings(prev => ({ ...prev, ...cloudData.settings }));
+                        setSiteSettings(cloudData.settings);
                     }
                     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cloudData));
                     setDataLoaded(true);
