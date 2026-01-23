@@ -901,10 +901,18 @@ function App() {
     if (newLink.icon && (newLink.icon.startsWith('http://') || newLink.icon.startsWith('https://'))) {
       cacheIconForLink(newLink.icon).then(base64data => {
         if (base64data && base64data !== newLink.icon) {
-          const updatedLinks = links.map(l =>
-            l.id === newLink.id ? { ...l, icon: base64data } : l
-          );
-          updateData(updatedLinks, categories, siteSettings);
+          // 使用函数式更新，确保获取最新的状态
+          setLinks(currentLinks => {
+            const updatedLinks = currentLinks.map(l =>
+              l.id === newLink.id ? { ...l, icon: base64data } : l
+            );
+            // 更新本地缓存和云端
+            requestAnimationFrame(() => {
+              localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ links: updatedLinks, categories, settings: siteSettings }));
+            });
+            syncToCloud(updatedLinks, categories, siteSettings, authToken || '');
+            return updatedLinks;
+          });
         }
       });
     }
@@ -944,10 +952,18 @@ function App() {
     if (data.icon && (data.icon.startsWith('http://') || data.icon.startsWith('https://'))) {
       cacheIconForLink(data.icon).then(base64data => {
         if (base64data && base64data !== data.icon) {
-          const updatedLinks = updated.map(l =>
-            l.id === editingLink.id ? { ...l, icon: base64data } : l
-          );
-          updateData(updatedLinks, categories, siteSettings);
+          // 使用函数式更新，确保获取最新的状态
+          setLinks(currentLinks => {
+            const updatedLinks = currentLinks.map(l =>
+              l.id === editingLink.id ? { ...l, icon: base64data } : l
+            );
+            // 更新本地缓存和云端
+            requestAnimationFrame(() => {
+              localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ links: updatedLinks, categories, settings: siteSettings }));
+            });
+            syncToCloud(updatedLinks, categories, siteSettings, authToken || '');
+            return updatedLinks;
+          });
         }
       });
     }
