@@ -963,16 +963,13 @@ function App() {
           pinnedOrder = maxPinnedOrder + 1;
       }
 
-      // 立即更新状态
+      // 直接调用 updateData，避免重复渲染导致闪烁
       const updated = links.map(l => {
           if (l.id === id) {
               return { ...l, pinned: newPinned, pinnedOrder };
           }
           return l;
       });
-      setLinks(updated);
-
-      // 然后调用 updateData 同步到云端和本地
       updateData(updated, categories);
   };
   
