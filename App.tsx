@@ -436,20 +436,31 @@ function App() {
 
   // 批量缓存缺失的图标并同步到云端
   const cacheMissingIcons = async (linksToCache: LinkItem[]) => {
-    const iconCache: Record<string, string> = {};
-    let hasUpdates = false;
-
+    // 收集所有的图标转换任务
+    const tasks = [];
     for (const link of linksToCache) {
       if (link.icon && link.icon.includes('favicon.org.cn')) {
-        await new Promise(resolve => setTimeout(resolve, 300)); // 增加延迟避免请求过快
-        const base64data = await cacheIconForLink(link.icon);
-        if (base64data !== link.icon) {
-          // 更新内存中的图标缓存
-          iconCache[link.id] = base64data;
-          hasUpdates = true;
-        }
+        tasks.push(
+          new Promise(resolve => setTimeout(resolve, 300)) // 增加延迟避免请求过快
+            .then(() => cacheIconForLink(link.icon))
+            .then(base64data => ({ linkId: link.id, icon: base64data }))
+            .catch(() => ({ linkId: link.id, icon: link.icon }))
+        );
       }
     }
+
+    // 等待所有任务完成
+    const results = await Promise.all(tasks);
+
+    // 收集需要更新的图标
+    const iconCache: Record<string, string> = {};
+    let hasUpdates = false;
+    results.forEach(result => {
+      if (result.icon && result.icon !== links.find(l => l.id === result.linkId)?.icon) {
+        iconCache[result.linkId] = result.icon;
+        hasUpdates = true;
+      }
+    });
 
     // 如果有更新，更新 links 并同步到云端
     if (hasUpdates) {
@@ -1015,19 +1026,27 @@ function App() {
   const handleSaveAIConfig = (config: AIConfig, newSiteSettings: SiteSettings) => {
       setAiConfig(config);
       localStorage.setItem(AI_CONFIG_KEY, JSON.stringify(config));
-      // 立即更新标题（当用户修改标题时）
+
+      // 立即更新标题和 favicon
       if (newSiteSettings.title && document.title !== newSiteSettings.title) {
           document.title = newSiteSettings.title;
       }
-      // 立即更新 favicon（当用户修改 favicon 时）
       if (newSiteSettings.favicon) {
           const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
           if (link) {
               link.href = newSiteSettings.favicon;
           }
       }
+
       setSiteSettings(newSiteSettings);
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ links, categories, settings: newSiteSettings }));
+
+      // 立即更新本地缓存
+      requestAnimationFrame(() => {
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ links, categories, settings: newSiteSettings }));
+      });
+
+      // 异步同步到云端
+      syncToCloud(links, categories, newSiteSettings, authToken || '');
       // 同步到云端（无论是否登录都尝试）
       syncSettingsToCloud(newSiteSettings, config);
   };

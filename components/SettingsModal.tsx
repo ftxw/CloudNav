@@ -130,14 +130,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const handleBulkGenerate = async () => {
     if (!localConfig.apiKey) {
-        alert("请先配置并保存 API Key");
-        return;
+      alert("请先配置并保存 API Key");
+      return;
     }
 
     const missingLinks = links.filter(l => !l.description);
     if (missingLinks.length === 0) {
-        alert("所有链接都已有描述！");
-        return;
+      alert("所有链接都已有描述！");
+      return;
     }
 
     if (!confirm(`发现 ${missingLinks.length} 个链接缺少描述，确定要使用 AI 自动生成吗？这可能需要一些时间。`)) return;
@@ -145,20 +145,36 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     setIsProcessing(true);
     shouldStopRef.current = false;
     setProgress({ current: 0, total: missingLinks.length });
-    
-    let currentLinks = [...links];
 
+    // 先收集所有的描述生成任务
+    const tasks = [];
     for (let i = 0; i < missingLinks.length; i++) {
-        if (shouldStopRef.current) break;
+      const link = missingLinks[i];
+      tasks.push(
+        generateLinkDescription(link.title, link.url, localConfig)
+          .then(desc => ({ linkId: link.id, description: desc, index: i }))
+          .catch(() => ({ linkId: link.id, description: '', index: i }))
+      );
+    }
 
-        const link = missingLinks[i];
-        try {
-            const desc = await generateLinkDescription(link.title, link.url, localConfig);
-            currentLinks = currentLinks.map(l => l.id === link.id ? { ...l, description: desc } : l);
-            onUpdateLinks(currentLinks);
-            setProgress({ current: i + 1, total: missingLinks.length });
-        } catch (e) {
+    // 等待所有任务完成（带进度更新）
+    const results = await Promise.all(tasks);
+
+    // 只在结束时更新一次数据，避免多次渲染
+    const currentLinks = [...links];
+    let hasUpdates = false;
+    results.forEach(result => {
+      if (result.description && !shouldStopRef.current) {
+        const linkIndex = currentLinks.findIndex(l => l.id === result.linkId);
+        if (linkIndex !== -1) {
+          currentLinks[linkIndex] = { ...currentLinks[linkIndex], description: result.description };
+          hasUpdates = true;
         }
+      }
+    });
+
+    if (hasUpdates && !shouldStopRef.current) {
+      onUpdateLinks(currentLinks);
     }
 
     setIsProcessing(false);
