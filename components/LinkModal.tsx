@@ -249,7 +249,7 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
                     <select
                     value={categoryId}
                     onChange={(e) => setCategoryId(e.target.value)}
-                    className="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                    className="w-full h-11 px-2.5 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                     >
                     {categories.map(cat => (
                         <option key={cat.id} value={cat.id}>{cat.name}</option>
@@ -259,9 +259,9 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
                 <button
                     type="button"
                     onClick={() => setPinned(!pinned)}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-all ${
-                        pinned 
-                        ? 'bg-blue-100 border-blue-200 text-blue-600 dark:bg-blue-900/40 dark:border-blue-800 dark:text-blue-300' 
+                    className={`flex items-center gap-2 px-4 h-11 rounded-lg border transition-all ${
+                        pinned
+                        ? 'bg-blue-100 border-blue-200 text-blue-600 dark:bg-blue-900/40 dark:border-blue-800 dark:text-blue-300'
                         : 'bg-slate-50 border-slate-200 text-slate-500 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-400'
                     }`}
                 >
