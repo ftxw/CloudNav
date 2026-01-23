@@ -108,18 +108,11 @@ function App() {
   };
   const initialSettings = (typeof window !== 'undefined' && (window as any).__CLOUDNAV_INITIAL_DATA__) || getInitialSettings();
 
-  // 立即设置标题和 favicon，不等待数据加载
+  // 立即设置标题（不等待数据加载），favicon 等数据加载后再设置
   if (typeof window !== 'undefined') {
       const cachedTitle = initialSettings.title;
       if (cachedTitle && document.title !== cachedTitle) {
           document.title = cachedTitle;
-      }
-      const cachedFavicon = initialSettings.favicon;
-      if (cachedFavicon) {
-          const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-          if (link && link.href !== cachedFavicon) {
-              link.href = cachedFavicon;
-          }
       }
   }
 
