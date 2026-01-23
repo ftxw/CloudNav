@@ -597,19 +597,24 @@ function App() {
                 if (cloudTimestamp !== localTimestamp) {
                     setLinks(cloudData.links || []);
                     setCategories(cloudData.categories || []);
-                    setSiteSettings(cloudData.settings || {
+                    const settings = cloudData.settings || {
                         title: 'CloudNav - 我的导航',
                         navTitle: '云航 CloudNav',
                         favicon: '',
                         cardStyle: 'detailed'
-                    });
-                    if (cloudData.aiConfig) {
-                        setAiConfig(cloudData.aiConfig);
-                        localStorage.setItem(AI_CONFIG_KEY, JSON.stringify(cloudData.aiConfig));
+                    };
+                    setSiteSettings(settings);
+                    if (settings.aiConfig) {
+                        setAiConfig(settings.aiConfig);
+                        localStorage.setItem(AI_CONFIG_KEY, JSON.stringify(settings.aiConfig));
                     }
-                    if (cloudData.searchEngines) {
-                        setExternalEngines(cloudData.searchEngines);
-                        localStorage.setItem(SEARCH_ENGINES_KEY, JSON.stringify(cloudData.searchEngines));
+                    if (settings.searchEngines && settings.searchEngines.length > 0) {
+                        setExternalEngines(settings.searchEngines);
+                        localStorage.setItem(SEARCH_ENGINES_KEY, JSON.stringify(settings.searchEngines));
+                    } else {
+                        // 使用默认搜索引擎（过滤掉站内搜索）
+                        setExternalEngines(DEFAULT_SEARCH_ENGINES.filter(e => e.id !== 'local'));
+                        localStorage.setItem(SEARCH_ENGINES_KEY, JSON.stringify(DEFAULT_SEARCH_ENGINES.filter(e => e.id !== 'local')));
                     }
                     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cloudData));
                     cacheMissingIcons(cloudData.links || []);
@@ -983,7 +988,29 @@ function App() {
   };
 
   const togglePin = (id: string) => {
-      const updated = links.map(l => l.id === id ? { ...l, pinned: !l.pinned } : l);
+      const link = links.find(l => l.id === id);
+      if (!link) return;
+
+      const newPinned = !link.pinned;
+      let pinnedOrder: number | undefined;
+      if (newPinned) {
+          // 如果是从未置顶变为置顶，设置 pinnedOrder
+          const maxPinnedOrder = links.reduce((max, l) => {
+              return l.pinned && l.pinnedOrder !== undefined ? Math.max(max, l.pinnedOrder) : max;
+          }, -1);
+          pinnedOrder = maxPinnedOrder + 1;
+      }
+
+      // 立即更新状态
+      const updated = links.map(l => {
+          if (l.id === id) {
+              return { ...l, pinned: newPinned, pinnedOrder };
+          }
+          return l;
+      });
+      setLinks(updated);
+
+      // 然后调用 updateData 同步到云端和本地
       updateData(updated, categories);
   };
   
@@ -1015,13 +1042,14 @@ function App() {
 
   const syncSettingsToCloud = async (newSettings: SiteSettings, config: AIConfig) => {
       try {
+          const mergedSettings = { ...newSettings, aiConfig: config };
           const response = await fetch('/api/storage', {
               method: 'POST',
               headers: {
                   'Content-Type': 'application/json',
                   'x-auth-password': authToken || ''
               },
-              body: JSON.stringify({ links, categories, settings: newSettings, aiConfig: config })
+              body: JSON.stringify({ links, categories, settings: mergedSettings })
           });
           if (response.status === 401) {
               if (authToken) {
@@ -1036,13 +1064,14 @@ function App() {
 
   const syncSearchEnginesToCloud = async (newEngines: SearchEngine[]) => {
       try {
+          const mergedSettings = { ...siteSettings, searchEngines: newEngines };
           const response = await fetch('/api/storage', {
               method: 'POST',
               headers: {
                   'Content-Type': 'application/json',
                   'x-auth-password': authToken || ''
               },
-              body: JSON.stringify({ links, categories, settings: siteSettings, searchEngines: newEngines })
+              body: JSON.stringify({ links, categories, settings: mergedSettings })
           });
           if (response.status === 401) {
               if (authToken) {

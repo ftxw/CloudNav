@@ -8,8 +8,6 @@ interface AppData {
   links: any[];
   categories: any[];
   settings?: any;
-  aiConfig?: any;
-  searchEngines?: any;
 }
 
 const corsHeaders = {
@@ -77,24 +75,22 @@ export async function onRequest(context: { request: Request; env: Env }) {
           title: 'CloudNav - 我的导航',
           navTitle: '云航 CloudNav',
           favicon: '',
-          cardStyle: 'detailed'
+          cardStyle: 'detailed',
+          aiConfig: {
+            provider: 'gemini',
+            apiKey: '',
+            baseUrl: '',
+            model: 'gemini-2.5-flash'
+          },
+          searchEngines: [
+            { id: 'local', name: '站内', url: '', icon: 'Search' },
+            { id: 'google', name: 'Google', url: 'https://www.google.com/search?q=', icon: 'https://www.google.com/favicon.ico' },
+            { id: 'bing', name: '必应', url: 'https://www.bing.com/search?q=', icon: 'https://www.bing.com/favicon.ico' },
+            { id: 'baidu', name: '百度', url: 'https://www.baidu.com/s?wd=', icon: 'https://www.baidu.com/favicon.ico' },
+            { id: 'github', name: 'GitHub', url: 'https://github.com/search?q=', icon: 'https://github.com/favicon.ico' },
+            { id: 'bilibili', name: 'B站', url: 'https://search.bilibili.com/all?keyword=', icon: 'https://www.bilibili.com/favicon.ico' },
+          ]
         };
-
-        const initialAiConfig = {
-          provider: 'gemini',
-          apiKey: '',
-          baseUrl: '',
-          model: 'gemini-2.5-flash'
-        };
-
-        const initialSearchEngines = [
-          { id: 'local', name: '站内', url: '', icon: 'Search' },
-          { id: 'google', name: 'Google', url: 'https://www.google.com/search?q=', icon: 'https://www.google.com/favicon.ico' },
-          { id: 'bing', name: '必应', url: 'https://www.bing.com/search?q=', icon: 'https://www.bing.com/favicon.ico' },
-          { id: 'baidu', name: '百度', url: 'https://www.baidu.com/s?wd=', icon: 'https://www.baidu.com/favicon.ico' },
-          { id: 'github', name: 'GitHub', url: 'https://github.com/search?q=', icon: 'https://github.com/favicon.ico' },
-          { id: 'bilibili', name: 'B站', url: 'https://search.bilibili.com/all?keyword=', icon: 'https://www.bilibili.com/favicon.ico' },
-        ];
 
         const initialLinks = [
           { id: '1', title: 'GitHub', url: 'https://github.com', categoryId: 'dev', createdAt: Date.now(), description: '代码托管平台', pinned: true },
@@ -121,8 +117,6 @@ export async function onRequest(context: { request: Request; env: Env }) {
           kv.put('app_data:categories', JSON.stringify(initialCategories)),
           kv.put('app_data:settings', JSON.stringify(initialSettings)),
           kv.put('app_data:icons', JSON.stringify({})),
-          kv.put('app_data:ai_config', JSON.stringify(initialAiConfig)),
-          kv.put('app_data:search_engines', JSON.stringify(initialSearchEngines)),
         ]).catch(err => {
           console.error('Failed to initialize data:', err);
         });
@@ -131,8 +125,6 @@ export async function onRequest(context: { request: Request; env: Env }) {
           links: initialLinks,
           categories: initialCategories,
           settings: initialSettings,
-          aiConfig: initialAiConfig,
-          searchEngines: initialSearchEngines,
           timestamp
         };
 
@@ -144,21 +136,17 @@ export async function onRequest(context: { request: Request; env: Env }) {
       // 有时间戳键，读取所有数据
       const timestamp = parseInt(timestampRaw || '0', 10);
 
-      const [linksRaw, categoriesRaw, settingsRaw, iconsRaw, aiConfigRaw, searchEnginesRaw] = await Promise.all([
+      const [linksRaw, categoriesRaw, settingsRaw, iconsRaw] = await Promise.all([
         kv.get('app_data:links', { type: 'text' }).catch(() => null),
         kv.get('app_data:categories', { type: 'text' }).catch(() => null),
         kv.get('app_data:settings', { type: 'text' }).catch(() => null),
-        kv.get('app_data:icons', { type: 'text' }).catch(() => null),
-        kv.get('app_data:ai_config', { type: 'text' }).catch(() => null),
-        kv.get('app_data:search_engines', { type: 'text' }).catch(() => null)
+        kv.get('app_data:icons', { type: 'text' }).catch(() => null)
       ]);
 
       const linksData = JSON.parse(linksRaw || '[]') || [];
       const categoriesData = JSON.parse(categoriesRaw || '[]') || [];
       const settingsData = JSON.parse(settingsRaw || 'null') || null;
       const iconsData = JSON.parse(iconsRaw || '{}') || null;
-      const aiConfigData = JSON.parse(aiConfigRaw || 'null') || null;
-      const searchEnginesData = JSON.parse(searchEnginesRaw || '[]') || [];
 
       const data: AppData = {
         links: linksData,
@@ -168,12 +156,6 @@ export async function onRequest(context: { request: Request; env: Env }) {
 
       if (settingsData) {
         data.settings = settingsData;
-      }
-      if (aiConfigData) {
-        data.aiConfig = aiConfigData;
-      }
-      if (searchEnginesData) {
-        data.searchEngines = searchEnginesData;
       }
 
       // 将图标数据合并到 links 中
@@ -242,16 +224,23 @@ export async function onRequest(context: { request: Request; env: Env }) {
         return rest;
       });
 
+      // 合并 aiConfig 和 searchEngines 到 settings
+      const finalSettings = body.settings || {};
+      if (body.aiConfig) {
+        finalSettings.aiConfig = body.aiConfig;
+      }
+      if (body.searchEngines) {
+        finalSettings.searchEngines = body.searchEngines;
+      }
+
       // 并行写入所有数据，包括时间戳
       const timestamp = Date.now();
       await Promise.all([
         kv.put('app_data:timestamp', String(timestamp)),
         kv.put('app_data:links', JSON.stringify(linksWithoutIcons)),
         kv.put('app_data:categories', JSON.stringify(body.categories || [])),
-        body.settings ? kv.put('app_data:settings', JSON.stringify(body.settings)) : Promise.resolve(),
-        Object.keys(iconsData).length > 0 ? kv.put('app_data:icons', JSON.stringify(iconsData)) : Promise.resolve(),
-        body.aiConfig ? kv.put('app_data:ai_config', JSON.stringify(body.aiConfig)) : Promise.resolve(),
-        body.searchEngines ? kv.put('app_data:search_engines', JSON.stringify(body.searchEngines)) : Promise.resolve()
+        kv.put('app_data:settings', JSON.stringify(finalSettings)),
+        Object.keys(iconsData).length > 0 ? kv.put('app_data:icons', JSON.stringify(iconsData)) : Promise.resolve()
       ]);
 
       return new Response(JSON.stringify({ success: true }), {
