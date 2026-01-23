@@ -509,10 +509,14 @@ function App() {
         });
 
         if (response.status === 401) {
-            setAuthToken('');
-            localStorage.removeItem(AUTH_KEY);
-            setIsAuthOpen(true);
+            // 认证失败，静默处理，不弹出登录框
+            if (token) {
+                // 只有在有 token 时才清除（说明 token 过期）
+                setAuthToken('');
+                localStorage.removeItem(AUTH_KEY);
+            }
             setSyncStatus('error');
+            setTimeout(() => setSyncStatus('idle'), 2000);
             return false;
         }
 
@@ -523,6 +527,7 @@ function App() {
         return true;
     } catch (error) {
         setSyncStatus('error');
+        setTimeout(() => setSyncStatus('idle'), 2000);
         return false;
     }
   };
@@ -543,10 +548,8 @@ function App() {
           localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ links: newLinks, categories: newCategories, settings: newSettings }));
       });
 
-      // 异步同步到云端，不阻塞 UI
-      if (authToken) {
-          syncToCloud(newLinks, newCategories, newSettings, authToken);
-      }
+      // 异步同步到云端，不阻塞 UI（无论用户是否登录都尝试同步）
+      syncToCloud(newLinks, newCategories, newSettings, authToken || '');
   };
 
   useEffect(() => {
@@ -579,37 +582,87 @@ function App() {
     }
 
     const initData = async () => {
-        // 先检查本地是否有数据
-        const hasLocalData = localStorage.getItem(LOCAL_STORAGE_KEY);
-        if (hasLocalData) {
-            loadFromLocal();
-            setDataLoaded(true);
-            // 本地有数据，不从云端读取，直接完成
-            return;
-        }
-
-        // 本地没有数据，从云端加载
+        // 无论本地是否有数据，都先尝试从云端获取数据
         try {
             const res = await fetch('/api/storage');
             if (res.ok) {
-                const data = await res.json();
-                // 只要有数据（links 或 settings）就使用云端数据
-                if (data && (data.links || data.settings)) {
-                    setLinks(data.links || INITIAL_LINKS);
-                    setCategories(data.categories || DEFAULT_CATEGORIES);
-                    if (data.settings) {
-                        setSiteSettings(prev => ({ ...prev, ...data.settings }));
-                    }
+                const cloudData = await res.json();
+
+                // hasKeys 标记表示 KV 存储中是否有键（即使值为空）
+                // 如果 hasKeys 为 false，说明是首次部署，使用初始数据
+                // 如果 hasKeys 为 true，但数据为空，说明用户清空了数据，保持空状态
+                const isFirstDeployment = !cloudData.hasKeys;
+
+                if (isFirstDeployment) {
+                    // 首次部署，使用初始数据并上传到云端（无论是否登录）
+                    const initialData = {
+                        links: INITIAL_LINKS,
+                        categories: DEFAULT_CATEGORIES,
+                        settings: siteSettings
+                    };
+                    setLinks(initialData.links);
+                    setCategories(initialData.categories);
+                    setSiteSettings(initialData.settings);
+                    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(initialData));
                     setDataLoaded(true);
-                    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
                     // 缓存缺失的图标
-                    cacheMissingIcons(data.links || INITIAL_LINKS);
+                    cacheMissingIcons(initialData.links);
+
+                    // 尝试上传初始数据到云端（即使没有 authToken 也尝试）
+                    try {
+                        await fetch('/api/storage', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'x-auth-password': authToken || ''
+                            },
+                            body: JSON.stringify(initialData)
+                        });
+                    } catch (e) {
+                        // 上传失败不影响本地使用
+                    }
                     return;
                 }
+
+                // 云端有键（可能是用户清空了数据，也可能是正常数据）
+                // 对比本地缓存
+                const localDataStr = localStorage.getItem(LOCAL_STORAGE_KEY);
+                let localData = null;
+                if (localDataStr) {
+                    try {
+                        localData = JSON.parse(localDataStr);
+                    } catch (e) {}
+                }
+
+                // 比较云端和本地数据是否一致
+                const isDataDifferent = !localData ||
+                    JSON.stringify(cloudData.links || []) !== JSON.stringify(localData.links || []) ||
+                    JSON.stringify(cloudData.categories || []) !== JSON.stringify(localData.categories || []) ||
+                    JSON.stringify(cloudData.settings || {}) !== JSON.stringify(localData.settings || {});
+
+                if (isDataDifferent) {
+                    // 数据不一致，使用云端数据并更新本地缓存
+                    setLinks(cloudData.links || []);
+                    setCategories(cloudData.categories || []);
+                    if (cloudData.settings) {
+                        setSiteSettings(prev => ({ ...prev, ...cloudData.settings }));
+                    }
+                    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cloudData));
+                    setDataLoaded(true);
+                    // 缓存缺失的图标
+                    cacheMissingIcons(cloudData.links || []);
+                } else {
+                    // 数据一致，使用本地缓存
+                    loadFromLocal();
+                    setDataLoaded(true);
+                }
+                return;
             }
         } catch (e) {
-            // Ignore errors silently
+            // 云端请求失败，使用本地数据
         }
+
+        // 云端请求失败，使用本地数据
         loadFromLocal();
         setDataLoaded(true);
     };
@@ -645,6 +698,8 @@ function App() {
 
     initData();
   }, []);
+
+  // 删除 syncFromCloudInBackground 函数，因为我们已经在 initData 中处理了云端数据同步
 
   useEffect(() => {
       // 标题更新逻辑 - 数据加载完成后设置标题

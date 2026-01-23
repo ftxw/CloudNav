@@ -50,7 +50,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
       const kv = getKVStorage(env);
 
       if (!kv) {
-        // 返回默认数据
+        // KV 存储不可用，返回默认数据，标记 hasKeys: false
         return new Response(JSON.stringify({
           links: [],
           categories: [],
@@ -59,23 +59,37 @@ export async function onRequest(context: { request: Request; env: Env }) {
             navTitle: '云航 CloudNav',
             favicon: '',
             cardStyle: 'detailed'
-          }
+          },
+          hasKeys: false
         }), {
           headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
       }
 
-      // 并行读取四个独立的键
-      const [linksData, categoriesData, settingsData, iconsData] = await Promise.all([
-        kv.get('app_data:links', 'json').catch(() => []),
-        kv.get('app_data:categories', 'json').catch(() => []),
-        kv.get('app_data:settings', 'json').catch(() => null),
-        kv.get('app_data:icons', 'json').catch(() => null)
+      // 并行读取四个独立的键，使用 type: 'text' 来检测键是否存在
+      const [linksRaw, categoriesRaw, settingsRaw, iconsRaw] = await Promise.all([
+        kv.get('app_data:links', { type: 'text' }).catch(() => null),
+        kv.get('app_data:categories', { type: 'text' }).catch(() => null),
+        kv.get('app_data:settings', { type: 'text' }).catch(() => null),
+        kv.get('app_data:icons', { type: 'text' }).catch(() => null)
       ]);
+
+      // 判断键是否存在（即使值为空）
+      const hasLinksKey = linksRaw !== null;
+      const hasCategoriesKey = categoriesRaw !== null;
+      const hasSettingsKey = settingsRaw !== null;
+      const hasAnyKey = hasLinksKey || hasCategoriesKey || hasSettingsKey;
+
+      // 解析 JSON 数据
+      const linksData = hasLinksKey ? (JSON.parse(linksRaw || '[]') || []) : [];
+      const categoriesData = hasCategoriesKey ? (JSON.parse(categoriesRaw || '[]') || []) : [];
+      const settingsData = hasSettingsKey ? (JSON.parse(settingsRaw || 'null') || null) : null;
+      const iconsData = iconsRaw ? JSON.parse(iconsRaw || '{}') : null;
 
       const data: AppData = {
         links: linksData || [],
-        categories: categoriesData || []
+        categories: categoriesData || [],
+        hasKeys: hasAnyKey  // 添加标记，表示 KV 中是否有键
       };
 
       if (settingsData) {
