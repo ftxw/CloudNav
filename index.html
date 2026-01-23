@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <title></title>
-    <link rel="icon" href="" />
+    <link rel="icon" href="/favicon.ico" />
     <script>
       (function() {
         var initialSettings = {
@@ -28,6 +28,13 @@
           document.title = finalSettings.title;
         } else if (hasLocalStorage) {
           document.title = 'CloudNav - 我的导航';
+        }
+        // 设置 favicon
+        if (finalSettings.favicon) {
+          var link = document.querySelector("link[rel~='icon']");
+          if (link) {
+            link.href = finalSettings.favicon;
+          }
         }
         // 保存初始数据供 React 使用
         window.__CLOUDNAV_INITIAL_DATA__ = finalSettings;

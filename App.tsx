@@ -46,7 +46,6 @@ const AUTH_KEY = 'cloudnav_auth_token';
 const WEBDAV_CONFIG_KEY = 'cloudnav_webdav_config';
 const AI_CONFIG_KEY = 'cloudnav_ai_config';
 const SEARCH_ENGINES_KEY = 'cloudnav_search_engines';
-const ICON_CACHE_KEY = 'cloudnav_icon_cache';
 
 function App() {
   // --- 可复用的样式对象 ---
@@ -381,14 +380,8 @@ function App() {
       try {
         const parsed = JSON.parse(stored);
         const linksData = parsed.links || INITIAL_LINKS;
-        // 从本地图标缓存合并图标
-        const iconCache = JSON.parse(localStorage.getItem(ICON_CACHE_KEY) || '{}');
-        const linksWithCachedIcons = linksData.map(link => ({
-          ...link,
-          // 如果本地缓存有这个链接的图标，使用缓存的
-          icon: iconCache[link.id] || link.icon
-        }));
-        setLinks(linksWithCachedIcons);
+        // 直接使用云端返回的图标数据，不再使用本地缓存
+        setLinks(linksData);
         setCategories(parsed.categories || DEFAULT_CATEGORIES);
         if (parsed.settings) setSiteSettings(prev => ({ ...prev, ...parsed.settings }));
       } catch (e) {
@@ -441,9 +434,9 @@ function App() {
     }
   };
 
-  // 批量缓存缺失的图标
+  // 批量缓存缺失的图标并同步到云端
   const cacheMissingIcons = async (linksToCache: LinkItem[]) => {
-    const iconCache = JSON.parse(localStorage.getItem(ICON_CACHE_KEY) || '{}');
+    const iconCache: Record<string, string> = {};
     let hasUpdates = false;
 
     for (const link of linksToCache) {
@@ -451,22 +444,22 @@ function App() {
         await new Promise(resolve => setTimeout(resolve, 300)); // 增加延迟避免请求过快
         const base64data = await cacheIconForLink(link.icon);
         if (base64data !== link.icon) {
-          // 更新本地图标缓存
+          // 更新内存中的图标缓存
           iconCache[link.id] = base64data;
           hasUpdates = true;
         }
       }
     }
 
-    // 如果有更新，保存图标缓存并更新显示
+    // 如果有更新，更新 links 并同步到云端
     if (hasUpdates) {
-      localStorage.setItem(ICON_CACHE_KEY, JSON.stringify(iconCache));
-      // 合并图标到 links
       const updatedLinks = links.map(link => ({
         ...link,
         icon: iconCache[link.id] || link.icon
       }));
       setLinks(updatedLinks);
+      // 立即同步到云端
+      updateData(updatedLinks, categories, siteSettings);
     }
   };
 
@@ -881,30 +874,17 @@ function App() {
     updateData([newLink, ...links], categories);
     setPrefillLink(undefined);
 
-    // 后台异步转换图标（不阻塞UI，不触发重新渲染）
+    // 后台异步转换图标并同步到云端
     // 任何 http:// 或 https:// 开头的图标 URL 都转换为 base64
     if (newLink.icon && (newLink.icon.startsWith('http://') || newLink.icon.startsWith('https://'))) {
       cacheIconForLink(newLink.icon).then(base64data => {
         if (base64data && base64data !== newLink.icon) {
-          // 只更新本地图标缓存，不更新 links 状态（避免闪烁）
-          requestAnimationFrame(() => {
-            const iconCache = JSON.parse(localStorage.getItem(ICON_CACHE_KEY) || '{}');
-            iconCache[newLink.id] = base64data;
-            localStorage.setItem(ICON_CACHE_KEY, JSON.stringify(iconCache));
-
-            // 异步更新主数据（包含图标数据）并同步到云端
-            const cachedData = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '{}');
-            const updatedCloudLinks = (cachedData.links || INITIAL_LINKS).map(l =>
-              l.id === newLink.id ? { ...l, icon: base64data } : l
-            );
-            const newData = { ...cachedData, links: updatedCloudLinks };
-            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newData));
-
-            // 触发一次静默的云端同步
-            if (authToken) {
-              syncToCloud(updatedCloudLinks, categories, siteSettings, authToken);
-            }
-          });
+          // 更新 links 状态并同步到云端
+          const updatedLinks = links.map(l =>
+            l.id === newLink.id ? { ...l, icon: base64data } : l
+          );
+          setLinks(updatedLinks);
+          updateData(updatedLinks, categories, siteSettings);
         }
       });
     }
@@ -938,30 +918,17 @@ function App() {
     updateData(updated, categories);
     setEditingLink(undefined);
 
-    // 后台异步转换图标（不阻塞UI，不触发重新渲染）
+    // 后台异步转换图标并同步到云端
     // 任何 http:// 或 https:// 开头的图标 URL 都转换为 base64
     if (data.icon && (data.icon.startsWith('http://') || data.icon.startsWith('https://'))) {
       cacheIconForLink(data.icon).then(base64data => {
         if (base64data && base64data !== data.icon) {
-          // 只更新本地图标缓存，不更新 links 状态（避免闪烁）
-          requestAnimationFrame(() => {
-            const iconCache = JSON.parse(localStorage.getItem(ICON_CACHE_KEY) || '{}');
-            iconCache[editingLink.id] = base64data;
-            localStorage.setItem(ICON_CACHE_KEY, JSON.stringify(iconCache));
-
-            // 异步更新主数据（包含图标数据）并同步到云端
-            const cachedData = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '{}');
-            const updatedCloudLinks = (cachedData.links || INITIAL_LINKS).map(l =>
-              l.id === editingLink.id ? { ...l, icon: base64data } : l
-            );
-            const newData = { ...cachedData, links: updatedCloudLinks };
-            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newData));
-
-            // 触发一次静默的云端同步
-            if (authToken) {
-              syncToCloud(updatedCloudLinks, categories, siteSettings, authToken);
-            }
-          });
+          // 更新 links 状态并同步到云端
+          const updatedLinks = updated.map(l =>
+            l.id === editingLink.id ? { ...l, icon: base64data } : l
+          );
+          setLinks(updatedLinks);
+          updateData(updatedLinks, categories, siteSettings);
         }
       });
     }
