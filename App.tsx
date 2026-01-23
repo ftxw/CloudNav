@@ -510,6 +510,26 @@ function App() {
 
         setSyncStatus('saved');
         setTimeout(() => setSyncStatus('idle'), 2000);
+
+        // 同步成功后，更新本地缓存的时间戳
+        try {
+            const res = await fetch('/api/storage');
+            if (res.ok) {
+                const cloudData = await res.json();
+                if (cloudData.timestamp) {
+                    // 更新本地缓存的时间戳
+                    const localDataStr = localStorage.getItem(LOCAL_STORAGE_KEY);
+                    if (localDataStr) {
+                        const localData = JSON.parse(localDataStr);
+                        localData.timestamp = cloudData.timestamp;
+                        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(localData));
+                    }
+                }
+            }
+        } catch (e) {
+            // 忽略获取时间戳的错误
+        }
+
         return true;
     } catch (error) {
         setSyncStatus('error');
@@ -529,9 +549,10 @@ function App() {
           document.title = newSettings.title;
       }
 
-      // 异步更新 localStorage，不阻塞 UI
+      // 立即更新本地缓存，不阻塞 UI
       requestAnimationFrame(() => {
-          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ links: newLinks, categories: newCategories, settings: newSettings }));
+          const dataToSave = { links: newLinks, categories: newCategories, settings: newSettings };
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(dataToSave));
       });
 
       // 异步同步到云端，不阻塞 UI（无论用户是否登录都尝试同步）
