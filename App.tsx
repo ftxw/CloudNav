@@ -893,32 +893,25 @@ function App() {
       newLink.pinnedOrder = maxPinnedOrder + 1;
     }
 
-    // 后台异步转换图标（不阻塞UI）
-    // 任何 http:// 或 https:// 开头的图标 URL 都转换为 base64
-    const iconPromise = (newLink.icon && (newLink.icon.startsWith('http://') || newLink.icon.startsWith('https://')))
-      ? cacheIconForLink(newLink.icon)
-      : Promise.resolve(newLink.icon);
-
-    const finalIcon = await iconPromise;
-    if (finalIcon && finalIcon !== newLink.icon) {
-      newLink.icon = finalIcon;
-    }
-
-    // 只调用一次 updateData，避免闪烁
+    // 立即保存，不等待图标转换
     updateData([newLink, ...links], categories);
     setPrefillLink(undefined);
+
+    // 后台异步转换图标
+    if (newLink.icon && (newLink.icon.startsWith('http://') || newLink.icon.startsWith('https://'))) {
+      cacheIconForLink(newLink.icon).then(base64data => {
+        if (base64data && base64data !== newLink.icon) {
+          const updatedLinks = links.map(l =>
+            l.id === newLink.id ? { ...l, icon: base64data } : l
+          );
+          updateData(updatedLinks, categories, siteSettings);
+        }
+      });
+    }
   };
 
   const handleEditLink = async (data: Omit<LinkItem, 'id' | 'createdAt'>) => {
     if (!editingLink) return;
-
-    // 后台异步转换图标（不阻塞UI）
-    // 任何 http:// 或 https:// 开头的图标 URL 都转换为 base64
-    const iconPromise = (data.icon && (data.icon.startsWith('http://') || data.icon.startsWith('https://')))
-      ? cacheIconForLink(data.icon)
-      : Promise.resolve(data.icon);
-
-    const finalIcon = await iconPromise;
 
     // 更新链接，保留原始的 base64 图标
     const originalLink = links.find(l => l.id === editingLink.id);
@@ -926,12 +919,8 @@ function App() {
         if (l.id === editingLink.id) {
             const newLink = { ...l, ...data };
 
-            // 如果图标转换成功，使用转换后的图标
-            if (finalIcon && finalIcon !== data.icon) {
-                newLink.icon = finalIcon;
-            }
             // 如果原始链接有 base64 图标，且编辑时没有修改图标字段，则保留原始图标
-            else if (originalLink && originalLink.icon && originalLink.icon.startsWith('data:image') && !data.icon) {
+            if (originalLink && originalLink.icon && originalLink.icon.startsWith('data:image') && !data.icon) {
                 newLink.icon = originalLink.icon;
             }
 
@@ -947,9 +936,21 @@ function App() {
         return l;
     });
 
-    // 只调用一次 updateData，避免闪烁
+    // 立即保存，不等待图标转换
     updateData(updated, categories);
     setEditingLink(undefined);
+
+    // 后台异步转换图标
+    if (data.icon && (data.icon.startsWith('http://') || data.icon.startsWith('https://'))) {
+      cacheIconForLink(data.icon).then(base64data => {
+        if (base64data && base64data !== data.icon) {
+          const updatedLinks = updated.map(l =>
+            l.id === editingLink.id ? { ...l, icon: base64data } : l
+          );
+          updateData(updatedLinks, categories, siteSettings);
+        }
+      });
+    }
   };
 
   const handleDeleteLink = (id: string) => {
