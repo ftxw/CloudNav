@@ -180,7 +180,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
       if (iconsData && data.links) {
         data.links = data.links.map(link => ({
           ...link,
-          icon: iconsData[link.id] || link.icon
+          icon: iconsData[link.id] || ''
         }));
       }
 
@@ -229,14 +229,17 @@ export async function onRequest(context: { request: Request; env: Env }) {
 
       // 提取图标数据（从 links 中分离出来）
       const iconsData: Record<string, string> = {};
+      (body.links || []).forEach((link: any) => {
+        // 如果是 base64 图标，存到 iconsData 中
+        if (link.icon && link.icon.startsWith('data:image')) {
+          iconsData[link.id] = link.icon;
+        }
+      });
+
+      // 移除 icon 字段
       const linksWithoutIcons = (body.links || []).map((link: any) => {
         const { icon, ...rest } = link;
-        // 如果是 base64 图标，存到 iconsData 中
-        if (icon && icon.startsWith('data:image')) {
-          iconsData[link.id] = icon;
-          return { ...rest, icon: '' }; // links 中保留空字符串或原始 URL
-        }
-        return link; // 非 base64 图标（如 API URL）保留原样
+        return rest;
       });
 
       // 并行写入所有数据，包括时间戳

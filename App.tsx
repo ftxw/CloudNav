@@ -641,9 +641,16 @@ function App() {
           }
       }
       // favicon 更新逻辑
-      const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-      if (link && siteSettings.favicon && link.href !== siteSettings.favicon) {
-          link.href = siteSettings.favicon;
+      if (dataLoaded) {
+          const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+          if (link) {
+              if (siteSettings.favicon && link.href !== siteSettings.favicon) {
+                  link.href = siteSettings.favicon;
+              } else if (!siteSettings.favicon) {
+                  // 如果 favicon 为空，使用默认图标
+                  link.href = '/favicon.ico';
+              }
+          }
       }
   }, [siteSettings.title, siteSettings.favicon, dataLoaded]);
 
@@ -1004,6 +1011,48 @@ function App() {
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ links, categories, settings: newSiteSettings }));
       // 同步到云端（无论是否登录都尝试）
       syncSettingsToCloud(newSiteSettings, config);
+  };
+
+  const syncSettingsToCloud = async (newSettings: SiteSettings, config: AIConfig) => {
+      try {
+          const response = await fetch('/api/storage', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+                  'x-auth-password': authToken || ''
+              },
+              body: JSON.stringify({ links, categories, settings: newSettings, aiConfig: config })
+          });
+          if (response.status === 401) {
+              if (authToken) {
+                  setAuthToken('');
+                  localStorage.removeItem(AUTH_KEY);
+              }
+          }
+      } catch (e) {
+          // Ignore errors silently
+      }
+  };
+
+  const syncSearchEnginesToCloud = async (newEngines: SearchEngine[]) => {
+      try {
+          const response = await fetch('/api/storage', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+                  'x-auth-password': authToken || ''
+              },
+              body: JSON.stringify({ links, categories, settings: siteSettings, searchEngines: newEngines })
+          });
+          if (response.status === 401) {
+              if (authToken) {
+                  setAuthToken('');
+                  localStorage.removeItem(AUTH_KEY);
+              }
+          }
+      } catch (e) {
+          // Ignore errors silently
+      }
   };
 
   const scrollToCategory = (catId: string) => {
