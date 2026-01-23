@@ -456,21 +456,23 @@ function App() {
     const iconCache: Record<string, string> = {};
     let hasUpdates = false;
     results.forEach(result => {
-      if (result.icon && result.icon !== links.find(l => l.id === result.linkId)?.icon) {
+      if (result.icon && result.icon !== linksToCache.find(l => l.id === result.linkId)?.icon) {
         iconCache[result.linkId] = result.icon;
         hasUpdates = true;
       }
     });
 
-    // 如果有更新，更新 links 并同步到云端
+    // 如果有更新，使用函数式状态更新避免闭包问题
     if (hasUpdates) {
-      const updatedLinks = links.map(link => ({
-        ...link,
-        icon: iconCache[link.id] || link.icon
-      }));
-      setLinks(updatedLinks);
-      // 立即同步到云端
-      updateData(updatedLinks, categories, siteSettings);
+      setLinks(currentLinks => {
+        const updatedLinks = currentLinks.map(link => ({
+          ...link,
+          icon: iconCache[link.id] || link.icon
+        }));
+        // 同步到云端（不阻塞）
+        syncToCloud(updatedLinks, categories, siteSettings, authToken || '');
+        return updatedLinks;
+      });
     }
   };
 
