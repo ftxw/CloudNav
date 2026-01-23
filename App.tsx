@@ -620,8 +620,10 @@ function App() {
     };
 
     initData();
-  }, []);
+  }, [];
 
+  // 默认渐变 "C" 图标（base64 SVG）
+  const DEFAULT_FAVICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%233b82f6'/%3E%3Cstop offset='100%25' style='stop-color:%23a855f7'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='6' fill='url(%23grad)'/%3E%3Ctext x='50%25' y='50%25' dy='.35em' text-anchor='middle' fill='white' font-family='Arial, sans-serif' font-size='20' font-weight='bold'%3EC%3C/text%3E%3C/svg%3E";
 
   useEffect(() => {
       // 标题更新逻辑 - 数据加载完成后设置标题
@@ -631,15 +633,15 @@ function App() {
               document.title = finalTitle;
           }
       }
-      // favicon 更新逻辑
+      // favicon 更新逻辑 - 与左上角图标同步
       if (dataLoaded) {
           const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
           if (link) {
-              if (siteSettings.favicon && link.href !== siteSettings.favicon) {
-                  link.href = siteSettings.favicon;
-              } else if (!siteSettings.favicon) {
-                  // 如果 favicon 为空，使用默认图标
-                  link.href = '/favicon.ico';
+              // 如果用户设置了自定义 favicon 则使用自定义的
+              // 否则使用默认的渐变 "C" 图标
+              const targetFavicon = siteSettings.favicon || DEFAULT_FAVICON;
+              if (link.href !== targetFavicon) {
+                  link.href = targetFavicon;
               }
           }
       }
