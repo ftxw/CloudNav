@@ -1630,7 +1630,7 @@ function App() {
                  )}
              </div>
             <span className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent truncate">
-              {siteSettings.navTitle || 'CloudNav'}
+              {siteSettings.navTitle || 'HaoNav'}
             </span>
         </div>
 

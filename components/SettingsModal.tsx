@@ -57,8 +57,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [localConfig, setLocalConfig] = useState<AIConfig>(config);
   
   const [localSiteSettings, setLocalSiteSettings] = useState<SiteSettings>(() => ({
-      title: siteSettings?.title || 'CloudNav - 我的导航',
-      navTitle: siteSettings?.navTitle || 'CloudNav',
+      title: siteSettings?.title || 'HaoNav - 我的导航',
+      navTitle: siteSettings?.navTitle || 'HaoNav',
       favicon: siteSettings?.favicon || '',
       cardStyle: siteSettings?.cardStyle || 'detailed'
   }));
@@ -92,8 +92,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     if (isOpen) {
       setLocalConfig(config);
       const safeSettings = {
-          title: siteSettings?.title || 'CloudNav - 我的导航',
-          navTitle: siteSettings?.navTitle || 'CloudNav',
+          title: siteSettings?.title || 'HaoNav - 我的导航',
+          navTitle: siteSettings?.navTitle || 'HaoNav',
           favicon: siteSettings?.favicon || '',
           cardStyle: siteSettings?.cardStyle || 'detailed'
       };
@@ -204,10 +204,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const getManifestJson = () => {
     const json: any = {
         manifest_version: 3,
-        name: (localSiteSettings.navTitle || "CloudNav") + " Pro",
+        name: (localSiteSettings.navTitle || "HaoNav") + " Pro",
         version: "7.6",
         minimum_chrome_version: "116",
-        description: "CloudNav - 极速侧边栏与智能收藏",
+        description: "HaoNav - 极速侧边栏与智能收藏",
         permissions: ["activeTab", "scripting", "sidePanel", "storage", "favicon", "contextMenus", "notifications", "tabs"],
         background: {
             service_worker: "background.js"
@@ -227,7 +227,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               "default": "Ctrl+Shift+E",
               "mac": "Command+Shift+E"
             },
-            "description": "打开/关闭 CloudNav 侧边栏"
+            "description": "打开/关闭 HaoNav 侧边栏"
           }
         }
     };
@@ -235,7 +235,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     if (browserType === 'firefox') {
         json.browser_specific_settings = {
             gecko: {
-                id: "cloudnav@example.com",
+                id: "haonav@example.com",
                 strict_min_version: "109.0"
             }
         };
@@ -244,7 +244,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     return JSON.stringify(json, null, 2);
   };
 
-  const extBackgroundJs = `// background.js - CloudNav Assistant v7.6
+  const extBackgroundJs = `// background.js - HaoNav Assistant v7.6
 // 内置配置
 const CONFIG = {
   apiBase: "${domain}",
@@ -283,7 +283,7 @@ async function refreshCache() {
 const windowPorts = {};
 
 chrome.runtime.onConnect.addListener((port) => {
-  if (port.name !== 'cloudnav_sidebar') return;
+  if (port.name !== 'haonav_sidebar') return;
   port.onMessage.addListener((msg) => {
     if (msg.type === 'init' && msg.windowId) {
       windowPorts[msg.windowId] = port;
@@ -322,8 +322,8 @@ function buildMenus() {
     chrome.contextMenus.removeAll(() => {
         // 创建一个统一的根菜单，同时支持 "page" (网页右键), "link" (链接右键), "action" (图标右键)
         chrome.contextMenus.create({
-            id: "cloudnav_root",
-            title: "⚡ 保存到 CloudNav",
+            id: "haonav_root",
+            title: "⚡ 保存到 HaoNav",
             contexts: ["page", "link", "action"]
         });
 
@@ -356,7 +356,7 @@ function updateMenuTitle(url) {
     // 检查是否存在
     const exists = linkCache.some(l => l.url && l.url.replace(/\\/$/, '').toLowerCase() === cleanUrl);
     
-    const newTitle = exists ? "⚠️ 已存在 - 保存到 CloudNav" : "⚡ 保存到 CloudNav";
+    const newTitle = exists ? "⚠️ 已存在 - 保存到 HaoNav" : "⚡ 保存到 HaoNav";
     
     // 仅更新标题，不重绘整个菜单，性能更高
     chrome.contextMenus.update("cloudnav_root", { title: newTitle }, () => {
@@ -432,7 +432,7 @@ async function saveLink(title, url, categoryId, icon = '') {
         });
 
         if (res.ok) {
-            notify('保存成功', \`已保存到 CloudNav\`);
+            notify('保存成功', \`已保存到 HaoNav\`);
             chrome.runtime.sendMessage({ type: 'refresh' }).catch(() => {});
             // 乐观更新缓存
             const newLink = { id: Date.now().toString(), title, url, categoryId, icon };
@@ -813,7 +813,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const url = window.URL.createObjectURL(content);
         const a = document.createElement('a');
         a.href = url;
-        a.download = "CloudNav-Ext.zip";
+        a.download = "HaoNav-Ext.zip";
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -1083,7 +1083,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     安装指南 ({browserType === 'chrome' ? 'Chrome/Edge' : 'Firefox'}):
                                 </h5>
                                 <ol className="list-decimal list-inside text-sm text-slate-600 dark:text-slate-400 space-y-2 leading-relaxed">
-                                    <li>在电脑上新建文件夹 <code className="bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 font-mono text-xs">CloudNav-Pro</code>。</li>
+                                    <li>在电脑上新建文件夹 <code className="bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 font-mono text-xs">HaoNav-Pro</code>。</li>
                                     <li><strong>[重要]</strong> 将下方图标保存为 <code className="bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 font-mono text-xs">icon.png</code>。</li>
                                     <li>获取插件代码文件：
                                         <ul className="list-disc list-inside ml-4 mt-1 space-y-1 text-slate-500">
@@ -1103,7 +1103,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     <li>1. 开启右上角的 "开发者模式" (Chrome)。</li>
                                     <li>2. 点击 "加载已解压的扩展程序"，选择包含上述文件的文件夹。</li>
                                     <li>3. 前往 <code className="select-all bg-white dark:bg-slate-900 px-1 rounded">chrome://extensions/shortcuts</code>。</li>
-                                    <li>4. <strong>[重要]</strong> 找到 "打开/关闭 CloudNav 侧边栏"，设置快捷键 (如 Ctrl+Shift+E)。</li>
+                                    <li>4. <strong>[重要]</strong> 找到 "打开/关闭 HaoNav 侧边栏"，设置快捷键 (如 Ctrl+Shift+E)。</li>
                                 </ol>
                                 
                                 <div className="mt-4 mb-4">
