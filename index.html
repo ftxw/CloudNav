@@ -9,7 +9,7 @@
       (function() {
         var initialSettings = {
           title: '',
-          navTitle: '云航 CloudNav',
+          navTitle: 'HaoNav',
           favicon: '',
           cardStyle: 'detailed'
         };
@@ -28,7 +28,7 @@
         if (hasLocalStorage && finalSettings.title) {
           document.title = finalSettings.title;
         } else if (hasLocalStorage) {
-          document.title = 'CloudNav - 我的导航';
+          document.title = 'HaoNav - 我的导航';
         }
         // 设置自定义 favicon（如果用户设置的话）
         if (finalSettings.favicon) {
