@@ -55,8 +55,8 @@ export async function onRequest(context: { request: Request; env: Env }) {
           links: [],
           categories: [],
           settings: {
-            title: 'CloudNav - 我的导航',
-            navTitle: '云航 CloudNav',
+            title: 'HaoNav - 我的导航',
+            navTitle: 'HaoNav',
             favicon: '',
             cardStyle: 'detailed'
           },
@@ -72,8 +72,8 @@ export async function onRequest(context: { request: Request; env: Env }) {
       // 如果没有时间戳键，说明是首次部署，返回初始数据并写入KV
       if (timestampRaw === null) {
         const initialSettings = {
-          title: 'CloudNav - 我的导航',
-          navTitle: '云航 CloudNav',
+          title: 'HaoNav - 我的导航',
+          navTitle: 'HaoNav',
           favicon: '',
           cardStyle: 'detailed',
           aiConfig: {
