@@ -92,7 +92,7 @@ function App() {
   const getInitialSettings = (): SiteSettings => {
       const initialSettings = {
           title: '',
-          navTitle: '云航 CloudNav',
+          navTitle: 'HaoNav',
           favicon: '',
           cardStyle: 'detailed'
       };
@@ -117,7 +117,7 @@ function App() {
 
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(initialSettings);
   const [dataLoaded, setDataLoaded] = useState(false);
-  const DEFAULT_TITLE = 'CloudNav - 我的导航';
+  const DEFAULT_TITLE = 'HaoNav - 我的导航';
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
@@ -614,8 +614,8 @@ function App() {
                     setLinks(cloudData.links || []);
                     setCategories(cloudData.categories || []);
                     const settings = cloudData.settings || {
-                        title: 'CloudNav - 我的导航',
-                        navTitle: '云航 CloudNav',
+                        title: 'HaoNav - 我的导航',
+                        navTitle: 'HaoNav',
                         favicon: '',
                         cardStyle: 'detailed'
                     };
