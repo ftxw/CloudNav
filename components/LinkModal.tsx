@@ -23,18 +23,41 @@ const convertIconToBase64 = async (iconUrl: string): Promise<string> => {
     }
 
     try {
+        // 方案1: 尝试通过后端 API 转换
         const response = await fetch(`/api/icon?url=${encodeURIComponent(iconUrl)}`);
         console.log('图标转换响应状态:', response.status);
 
-        if (!response.ok) {
-            console.error('图标转换失败,状态码:', response.status);
-            return iconUrl;
+        if (response.ok) {
+            const data = await response.json();
+            if (data.dataUrl) {
+                console.log('图标通过后端 API 转换成功');
+                return data.dataUrl;
+            }
+        } else {
+            console.warn('后端 API 转换失败,状态码:', response.status);
         }
 
-        const data = await response.json();
-        console.log('图标转换结果:', data.dataUrl ? '成功' : '失败');
+        // 方案2: 如果后端失败,尝试直接在前端转换(可能受 CORS 限制)
+        console.log('尝试在前端直接转换图标...');
+        const directResponse = await fetch(iconUrl);
+        if (directResponse.ok) {
+            const blob = await directResponse.blob();
+            const reader = new FileReader();
+            const base64 = await new Promise<string>((resolve) => {
+                reader.onloadend = () => {
+                    resolve(reader.result as string);
+                };
+                reader.onerror = () => resolve('');
+                reader.readAsDataURL(blob);
+            });
+            if (base64) {
+                console.log('图标通过前端直接转换成功');
+                return base64;
+            }
+        }
 
-        return data.dataUrl || iconUrl;
+        console.error('所有转换方案都失败,返回原始 URL');
+        return iconUrl;
     } catch (e) {
         console.error('图标转换异常:', e);
         return iconUrl;
@@ -150,10 +173,11 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
             console.log('检测到 HTTP 图标 URL,开始转换...');
             iconToSave = await convertIconToBase64(iconToSave);
 
-            // 如果转换失败（返回的仍然是 http URL），清空图标
+            // 如果转换失败（返回的仍然是 http URL），保留原始 URL 而不是清空
+            // 这样至少图标还能正常显示，虽然不是 base64
             if (iconToSave && iconToSave.startsWith('http')) {
-                console.warn('图标转换失败，将使用默认图标');
-                iconToSave = '';
+                console.warn('图标转换失败，保留原始 URL:', iconToSave.substring(0, 50));
+                // 不清空，保留原始 URL
             } else {
                 console.log('图标转换成功,base64 长度:', iconToSave?.length);
             }

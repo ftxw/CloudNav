@@ -30,16 +30,29 @@ export async function onRequest(context: { request: Request; env: Env }) {
         });
       }
 
+      console.log('Fetching icon from:', iconUrl);
+
       // 通过后端代理获取图标，避免 CORS 问题
-      const response = await fetch(iconUrl);
+      const response = await fetch(iconUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+      });
+
       if (!response.ok) {
-        return new Response(JSON.stringify({ error: 'Failed to fetch icon' }), {
+        console.error('Failed to fetch icon, status:', response.status, 'url:', iconUrl);
+        return new Response(JSON.stringify({
+          error: 'Failed to fetch icon',
+          status: response.status,
+          url: iconUrl
+        }), {
           status: response.status,
           headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
       }
 
       const blob = await response.blob();
+      console.log('Icon fetched successfully, size:', blob.size, 'type:', blob.type);
 
       // 将图片转换为 base64
       const buffer = await blob.arrayBuffer();
@@ -57,6 +70,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     } catch (err) {
+      console.error('Icon processing error:', err);
       return new Response(JSON.stringify({
         error: 'Failed to process icon',
         details: err instanceof Error ? err.message : String(err)
