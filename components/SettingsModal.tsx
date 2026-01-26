@@ -419,7 +419,7 @@ async function saveLink(title, url, categoryId, icon = '') {
             }
             const urlObj = new URL(normalizedUrl);
             const domain = urlObj.hostname;
-            icon = `https://favicon.im/zh/${domain}/?larger=true`;
+            icon = \`https://favicon.im/zh/\${domain}/?larger=true\`;
         } catch(e){}
     }
 
