@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   DndContext,
   KeyboardSensor,
@@ -995,6 +995,9 @@ function App() {
               return l.pinned && l.pinnedOrder !== undefined ? Math.max(max, l.pinnedOrder) : max;
           }, -1);
           pinnedOrder = maxPinnedOrder + 1;
+      } else {
+          // 如果是从置顶变为未置顶，清除 pinnedOrder
+          pinnedOrder = undefined;
       }
 
       // 直接调用 updateData，避免重复渲染导致闪烁
@@ -1141,11 +1144,11 @@ function App() {
       syncSearchEnginesToCloud(newEngines);
   };
 
-  const isCategoryLocked = (catId: string) => {
+  const isCategoryLocked = useCallback((catId: string) => {
       const cat = categories.find(c => c.id === catId);
       if (!cat || !cat.password) return false;
       return !unlockedCategoryIds.has(catId);
-  };
+  }, [categories, unlockedCategoryIds]);
 
   // Sortable Category Item Component
   const SortableCategoryItem = ({ cat, isSorting }: { cat: Category, isSorting: boolean }) => {
@@ -1245,15 +1248,24 @@ function App() {
   };
 
   const pinnedLinks = useMemo(() => {
-      // 始终显示所有置顶链接，并按照 pinnedOrder 排序
+      // 过滤出置顶链接（排除被锁定的分类）
       return links
           .filter(l => l.pinned === true && !isCategoryLocked(l.categoryId))
           .sort((a, b) => {
-              const orderA = a.pinnedOrder ?? Number.MAX_SAFE_INTEGER;
-              const orderB = b.pinnedOrder ?? Number.MAX_SAFE_INTEGER;
-              return orderA - orderB;
+              // 按照 pinnedOrder 排序，如果没有 pinnedOrder 则按创建时间排序
+              if (a.pinnedOrder !== undefined && b.pinnedOrder !== undefined) {
+                  return a.pinnedOrder - b.pinnedOrder;
+              }
+              if (a.pinnedOrder !== undefined) return -1;
+              if (b.pinnedOrder !== undefined) return 1;
+              return a.createdAt - b.createdAt;
           });
   }, [links, categories, unlockedCategoryIds]);
+
+  // 当前分类的置顶链接
+  const currentCategoryPinnedLinks = useMemo(() => {
+      return pinnedLinks.filter(l => l.categoryId === activeCategory);
+  }, [pinnedLinks, activeCategory]);
 
   const searchResults = useMemo(() => {
     // Only filter locally if mode is 'local'
@@ -2143,8 +2155,8 @@ function App() {
                 </section>
             )}
 
-            {/* 单独分类模式：置顶链接在该分类之前显示 */}
-            {activeCategory !== 'all' && pinnedLinks.length > 0 && !searchQuery && (
+            {/* 单独分类模式：只显示当前分类的置顶链接 */}
+            {activeCategory !== 'all' && currentCategoryPinnedLinks.length > 0 && !searchQuery && (
                 <section>
                     <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
                         <div className="flex items-center gap-2">
@@ -2164,9 +2176,9 @@ function App() {
                     </div>
                     {isSortingLinks === 'pinned' ? (
                         <DndContext sensors={sensors} onDragStart={handleLinkDragStart} onDragEnd={handleLinkDragEnd}>
-                            <SortableContext items={pinnedLinks.map(l => l.id)} strategy={rectSortingStrategy}>
+                            <SortableContext items={currentCategoryPinnedLinks.map(l => l.id)} strategy={rectSortingStrategy}>
                                 <div className={`grid gap-3 ${cardStyles[siteSettings.cardStyle]}`}>
-                                    {pinnedLinks.map(link => <SortableLinkCard key={link.id} link={link} isSorting={true} />)}
+                                    {currentCategoryPinnedLinks.map(link => <SortableLinkCard key={link.id} link={link} isSorting={true} />)}
                                 </div>
                             </SortableContext>
                             <DragOverlay>
@@ -2175,7 +2187,7 @@ function App() {
                         </DndContext>
                     ) : (
                         <div className={`grid gap-3 ${cardStyles[siteSettings.cardStyle]}`}>
-                            {pinnedLinks.map(link => renderLinkCard(link))}
+                            {currentCategoryPinnedLinks.map(link => renderLinkCard(link))}
                         </div>
                     )}
                 </section>
