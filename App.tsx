@@ -509,11 +509,18 @@ function App() {
   };
 
   const syncToCloud = async (newLinks: LinkItem[], newCategories: Category[], newSettings: SiteSettings, token: string) => {
+    // 使用旧版本调用新版本，保持兼容性
+    const newTimestamp = Date.now();
+    return syncToCloudWithTimestamp(newLinks, newCategories, newSettings, token, newTimestamp);
+  };
+
+  const syncToCloudWithTimestamp = async (newLinks: LinkItem[], newCategories: Category[], newSettings: SiteSettings, token: string, timestamp: number) => {
     setSyncStatus('saving');
 
     const sampleLink = newLinks[0];
     console.log('准备同步到云端:', {
         linksCount: newLinks.length,
+        timestamp: timestamp,
         sampleLink: sampleLink ? {
             id: sampleLink.id,
             title: sampleLink.title,
@@ -529,7 +536,7 @@ function App() {
                 'Content-Type': 'application/json',
                 'x-auth-password': token
             },
-            body: JSON.stringify({ links: newLinks, categories: newCategories, settings: newSettings })
+            body: JSON.stringify({ links: newLinks, categories: newCategories, settings: newSettings, timestamp })
         });
 
         if (response.status === 401) {
@@ -553,11 +560,14 @@ function App() {
         try {
             const responseData = await response.json();
             if (responseData.timestamp) {
+                console.log('同步成功,云端返回的 timestamp:', responseData.timestamp);
+
                 const localDataStr = localStorage.getItem(LOCAL_STORAGE_KEY);
                 if (localDataStr) {
                     const localData = JSON.parse(localDataStr);
                     localData.timestamp = responseData.timestamp;
                     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(localData));
+                    console.log('更新本地 localStorage timestamp 为:', responseData.timestamp);
                 }
             }
         } catch (e) {
@@ -573,6 +583,9 @@ function App() {
   };
 
   const updateData = (newLinks: LinkItem[], newCategories: Category[], newSettings: SiteSettings = siteSettings) => {
+      // 生成新的 timestamp，确保本次更新的时间戳
+      const newTimestamp = Date.now();
+
       // 立即更新状态，确保 UI 响应
       setLinks(newLinks);
       setCategories(newCategories);
@@ -585,22 +598,19 @@ function App() {
 
       // 立即更新本地缓存，不阻塞 UI
       requestAnimationFrame(() => {
-          // 保留现有的 timestamp，避免从云端重新加载数据
-          const localDataStr = localStorage.getItem(LOCAL_STORAGE_KEY);
-          const existingTimestamp = localDataStr ? (JSON.parse(localDataStr).timestamp || Date.now()) : Date.now();
-
           const dataToSave = {
               links: newLinks,
               categories: newCategories,
               settings: newSettings,
-              timestamp: existingTimestamp
+              timestamp: newTimestamp
           };
           localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(dataToSave));
-          console.log('数据已保存到 localStorage,链接数量:', newLinks.length, 'timestamp:', existingTimestamp);
+          console.log('数据已保存到 localStorage,链接数量:', newLinks.length, 'timestamp:', newTimestamp);
       });
 
       // 异步同步到云端，不阻塞 UI（无论用户是否登录都尝试同步）
-      syncToCloud(newLinks, newCategories, newSettings, authToken || '');
+      // 使用新的 timestamp，确保云端和本地时间戳一致
+      syncToCloudWithTimestamp(newLinks, newCategories, newSettings, authToken || '', newTimestamp);
   };
 
   useEffect(() => {
