@@ -4,6 +4,32 @@ import { X, Sparkles, Loader2, Pin, AlertTriangle, Wand2, Image as ImageIcon } f
 import { LinkItem, Category, AIConfig } from '../types';
 import { generateLinkDescription, suggestCategory } from '../services/geminiService';
 
+// 图标 URL 转 base64 的辅助函数
+const convertIconToBase64 = async (iconUrl: string): Promise<string> => {
+    if (!iconUrl) return '';
+
+    // 如果已经是 base64 格式,直接返回
+    if (iconUrl.startsWith('data:image')) {
+        return iconUrl;
+    }
+
+    // 如果不是 HTTP/HTTPS URL,直接返回原值
+    if (!iconUrl.startsWith('http://') && !iconUrl.startsWith('https://')) {
+        return iconUrl;
+    }
+
+    try {
+        const response = await fetch(`/api/icon?url=${encodeURIComponent(iconUrl)}`);
+        if (!response.ok) {
+            return iconUrl;
+        }
+        const data = await response.json();
+        return data.dataUrl || iconUrl;
+    } catch (e) {
+        return iconUrl;
+    }
+};
+
 interface LinkModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -24,6 +50,7 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
   const [pinned, setPinned] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState('');
+  const [isSaving, setIsSaving] = useState(false); // 添加保存状态
 
   // 预览图标：编辑时显示原有图标，添加时显示当前 iconUrl（如果有的话）
   const previewIcon = initialData ? (iconUrl || initialData.icon) : iconUrl;
@@ -94,13 +121,26 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    // 编辑模式下，如果图标 URL 为空，则保留原有图标
-    const iconToSave = initialData && !iconUrl ? initialData.icon : iconUrl;
-    await onSave({ title, url, description, categoryId, pinned, icon: iconToSave });
-    // 确保 onSave 完成后再关闭模态框
-    requestAnimationFrame(() => {
-      onClose();
-    });
+
+    setIsSaving(true);
+    try {
+        // 编辑模式下，如果图标 URL 为空，则保留原有图标
+        let iconToSave = initialData && !iconUrl ? initialData.icon : iconUrl;
+
+        // 如果有新的图标 URL,先转换为 base64
+        if (iconToSave && iconToSave.startsWith('http')) {
+            iconToSave = await convertIconToBase64(iconToSave);
+        }
+
+        await onSave({ title, url, description, categoryId, pinned, icon: iconToSave });
+
+        // 确保 onSave 完成后再关闭模态框
+        requestAnimationFrame(() => {
+            onClose();
+        });
+    } finally {
+        setIsSaving(false);
+    }
   };
 
   const handleAIAssist = async () => {
@@ -274,9 +314,17 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
           <div className="pt-2">
             <button
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors shadow-lg shadow-blue-500/30"
+              disabled={isSaving}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors shadow-lg shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              保存链接
+              {isSaving ? (
+                <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    保存中...
+                </>
+              ) : (
+                '保存链接'
+              )}
             </button>
           </div>
         </form>
