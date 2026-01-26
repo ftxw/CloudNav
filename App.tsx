@@ -73,12 +73,14 @@ function App() {
   // New Search State
   const [searchMode, setSearchMode] = useState<'local' | 'external'>('local');
   const [externalEngines, setExternalEngines] = useState<SearchEngine[]>(() => {
-      const saved = localStorage.getItem(SEARCH_ENGINES_KEY);
-      if (saved) {
-          try { return JSON.parse(saved); } catch(e) {}
-      }
-      // Filter out 'local' from defaults for the external list
-      return DEFAULT_SEARCH_ENGINES.filter(e => e.id !== 'local');
+    const saved = localStorage.getItem(SEARCH_ENGINES_KEY);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch(e) {}
+    }
+    // Filter out 'local' from defaults for the external list
+    return DEFAULT_SEARCH_ENGINES.filter(e => e.id !== 'local');
   });
   const [activeEngineId, setActiveEngineId] = useState<string>(() => {
       return externalEngines[0]?.id || 'google';
@@ -175,27 +177,27 @@ function App() {
   });
 
   const [aiConfig, setAiConfig] = useState<AIConfig>(() => {
-      const saved = localStorage.getItem(AI_CONFIG_KEY);
-      if (saved) {
-          try {
-              return JSON.parse(saved);
-          } catch (e) {}
-      }
-      
-      // Safe access to process env
-      let defaultKey = '';
+    const saved = localStorage.getItem(AI_CONFIG_KEY);
+    if (saved) {
       try {
-          if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
-              defaultKey = process.env.API_KEY;
-          }
-      } catch(e) {}
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
 
-      return {
-          provider: 'gemini',
-          apiKey: defaultKey, 
-          baseUrl: '',
-          model: 'gemini-2.5-flash'
-      };
+    // Safe access to process env
+    let defaultKey = '';
+    try {
+      if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+        defaultKey = process.env.API_KEY;
+      }
+    } catch(e) {}
+
+    return {
+      provider: 'gemini',
+      apiKey: defaultKey,
+      baseUrl: '',
+      model: 'gemini-2.5-flash'
+    };
   });
   
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -381,27 +383,16 @@ function App() {
         const parsed = JSON.parse(stored);
         const linksData = parsed.links || INITIAL_LINKS;
 
-        console.log('从 localStorage 加载数据:', {
-            linksCount: linksData.length,
-            sampleLink: linksData[0] ? {
-                id: linksData[0].id,
-                title: linksData[0].title,
-                icon: linksData[0].icon ? linksData[0].icon.substring(0, 30) + '...' : '无',
-                iconType: linksData[0].icon?.startsWith('data:image') ? 'base64' : 'URL'
-            } : '无链接'
-        });
-
         // 直接使用云端返回的图标数据，不再使用本地缓存
         setLinks(linksData);
         setCategories(parsed.categories || DEFAULT_CATEGORIES);
         if (parsed.settings) setSiteSettings(prev => ({ ...prev, ...parsed.settings }));
       } catch (e) {
-        console.error('加载本地数据失败:', e);
+        console.error('Failed to load local data:', e);
         setLinks(INITIAL_LINKS);
         setCategories(DEFAULT_CATEGORIES);
       }
     } else {
-      console.log('localStorage 中没有数据,使用默认值');
       setLinks(INITIAL_LINKS);
       setCategories(DEFAULT_CATEGORIES);
     }
@@ -517,18 +508,6 @@ function App() {
   const syncToCloudWithTimestamp = async (newLinks: LinkItem[], newCategories: Category[], newSettings: SiteSettings, token: string, timestamp: number) => {
     setSyncStatus('saving');
 
-    const sampleLink = newLinks[0];
-    console.log('准备同步到云端:', {
-        linksCount: newLinks.length,
-        timestamp: timestamp,
-        sampleLink: sampleLink ? {
-            id: sampleLink.id,
-            title: sampleLink.title,
-            icon: sampleLink.icon ? sampleLink.icon.substring(0, 30) + '...' : '无',
-            iconType: sampleLink.icon?.startsWith('data:image') ? 'base64' : 'URL'
-        } : '无链接'
-    });
-
     try {
         const response = await fetch('/api/storage', {
             method: 'POST',
@@ -560,14 +539,11 @@ function App() {
         try {
             const responseData = await response.json();
             if (responseData.timestamp) {
-                console.log('同步成功,云端返回的 timestamp:', responseData.timestamp);
-
                 const localDataStr = localStorage.getItem(LOCAL_STORAGE_KEY);
                 if (localDataStr) {
                     const localData = JSON.parse(localDataStr);
                     localData.timestamp = responseData.timestamp;
                     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(localData));
-                    console.log('更新本地 localStorage timestamp 为:', responseData.timestamp);
                 }
             }
         } catch (e) {
@@ -605,7 +581,6 @@ function App() {
               timestamp: newTimestamp
           };
           localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(dataToSave));
-          console.log('数据已保存到 localStorage,链接数量:', newLinks.length, 'timestamp:', newTimestamp);
       });
 
       // 异步同步到云端，不阻塞 UI（无论用户是否登录都尝试同步）
@@ -656,11 +631,6 @@ function App() {
 
                 // 对比时间戳，如果不一致则使用云端数据
                 if (cloudTimestamp !== localTimestamp) {
-                    console.log('时间戳不一致,从云端加载新数据', {
-                        cloudTimestamp,
-                        localTimestamp,
-                        cloudLinksCount: cloudData.links?.length
-                    });
                     setLinks(cloudData.links || []);
                     setCategories(cloudData.categories || []);
                     const settings = cloudData.settings || {
@@ -686,7 +656,6 @@ function App() {
                     // 不再调用 cacheMissingIcons，因为图标应该在保存时就已经转换为 base64
                 } else {
                     // 时间戳一致，使用本地缓存
-                    console.log('时间戳一致,使用本地缓存数据,timestamp:', localTimestamp);
                     loadFromLocal();
                 }
                 setDataLoaded(true);
@@ -953,13 +922,6 @@ function App() {
       newLink.pinnedOrder = maxPinnedOrder + 1;
     }
 
-    console.log('添加新链接:', {
-        id: newLink.id,
-        title: newLink.title,
-        icon: newLink.icon ? newLink.icon.substring(0, 30) + '...' : '无',
-        iconType: newLink.icon?.startsWith('data:image') ? 'base64' : 'URL'
-    });
-
     // 直接保存,图标已经在 LinkModal 中转换为 base64
     updateData([newLink, ...links], categories);
     setPrefillLink(undefined);
@@ -991,12 +953,8 @@ function App() {
         return l;
     });
 
+
     const updatedLink = updated.find(l => l.id === editingLink.id);
-    console.log('编辑链接:', {
-        id: editingLink.id,
-        icon: updatedLink?.icon ? updatedLink.icon.substring(0, 30) + '...' : '无',
-        iconType: updatedLink?.icon?.startsWith('data:image') ? 'base64' : 'URL'
-    });
 
     // 直接保存,图标已经在 LinkModal 中转换为 base64
     updateData(updated, categories);
