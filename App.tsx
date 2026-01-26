@@ -25,10 +25,12 @@ import {
   QrCode, Copy, LayoutGrid, List, ArrowRight, LogOut, X,
   Move, PlusSquare, Merge
 } from 'lucide-react';
-import { 
-    LinkItem, Category, DEFAULT_CATEGORIES, INITIAL_LINKS, 
-    WebDavConfig, AIConfig, SiteSettings, SearchEngine, DEFAULT_SEARCH_ENGINES 
+import {
+    LinkItem, Category, WebDavConfig, AIConfig, SiteSettings, SearchEngine
 } from './types';
+import {
+    DEFAULT_CATEGORIES, INITIAL_LINKS, DEFAULT_SEARCH_ENGINES, DEFAULT_SITE_SETTINGS
+} from './constants/config';
 import Icon from './components/Icon';
 import LinkModal from './components/LinkModal';
 import CategoryModal from './components/CategoryModal';
@@ -90,14 +92,8 @@ function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Site Settings - 从 localStorage 读取初始数据，如果没有则使用空值（标题由云端或 localStorage 提供）
   const getInitialSettings = (): SiteSettings => {
-      const initialSettings = {
-          title: '',
-          navTitle: 'HaoNav',
-          favicon: '',
-          cardStyle: 'detailed'
-      };
+      const initialSettings = { ...DEFAULT_SITE_SETTINGS };
       try {
           const stored = localStorage.getItem('cloudnav_data_cache');
           if (stored) {
@@ -109,7 +105,6 @@ function App() {
   };
   const initialSettings = (typeof window !== 'undefined' && (window as any).__CLOUDNAV_INITIAL_DATA__) || getInitialSettings();
 
-  // 立即设置标题（不等待数据加载），favicon 等数据加载后再设置
   if (typeof window !== 'undefined') {
       const cachedTitle = initialSettings.title;
       if (cachedTitle && document.title !== cachedTitle) {
@@ -119,7 +114,6 @@ function App() {
 
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(initialSettings);
   const [dataLoaded, setDataLoaded] = useState(false);
-  const DEFAULT_TITLE = 'HaoNav - 我的导航';
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
@@ -633,12 +627,7 @@ function App() {
                 if (cloudTimestamp !== localTimestamp) {
                     setLinks(cloudData.links || []);
                     setCategories(cloudData.categories || []);
-                    const settings = cloudData.settings || {
-                        title: 'HaoNav - 我的导航',
-                        navTitle: 'HaoNav',
-                        favicon: '',
-                        cardStyle: 'detailed'
-                    };
+                    const settings = cloudData.settings || DEFAULT_SITE_SETTINGS;
                     setSiteSettings(settings);
                     if (settings.aiConfig) {
                         setAiConfig(settings.aiConfig);
@@ -678,7 +667,7 @@ function App() {
   useEffect(() => {
       // 标题更新逻辑 - 数据加载完成后设置标题
       if (dataLoaded) {
-          const finalTitle = siteSettings.title || DEFAULT_TITLE;
+          const finalTitle = siteSettings.title || DEFAULT_SITE_SETTINGS.title;
           if (document.title !== finalTitle) {
               document.title = finalTitle;
           }
@@ -1613,7 +1602,7 @@ function App() {
                  )}
              </div>
             <span className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent truncate">
-              {siteSettings.navTitle || 'HaoNav'}
+              {siteSettings.navTitle || DEFAULT_SITE_SETTINGS.navTitle}
             </span>
         </div>
 

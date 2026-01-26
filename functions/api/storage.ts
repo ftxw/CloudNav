@@ -1,9 +1,10 @@
+import { DEFAULT_SITE_SETTINGS, DEFAULT_CATEGORIES, INITIAL_LINKS } from '../../constants/config';
+
 interface Env {
   CLOUDNAV_KV?: any;
   PASSWORD: string;
 }
 
-// 数据结构
 interface AppData {
   links: any[];
   categories: any[];
@@ -16,19 +17,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, x-auth-password',
 };
 
-// 辅助函数：获取 KV 实例（兼容 EdgeOne 和 Cloudflare）
 function getKVStorage(env: Env): any {
-  // EdgeOne 使用全局变量 CLOUDNAV_KV
   if (typeof (globalThis as any).CLOUDNAV_KV !== 'undefined') {
     return (globalThis as any).CLOUDNAV_KV;
   }
-  // Cloudflare 使用 env.CLOUDNAV_KV
   return env?.CLOUDNAV_KV;
 }
 
-// 辅助函数：获取密码（兼容 EdgeOne 和 Cloudflare）
 function getPassword(env: Env): string | undefined {
-  // EdgeOne 密码可能作为全局变量或环境变量
   if (typeof (globalThis as any).PASSWORD !== 'undefined') {
     return (globalThis as any).PASSWORD;
   }
@@ -50,32 +46,21 @@ export async function onRequest(context: { request: Request; env: Env }) {
       const kv = getKVStorage(env);
 
       if (!kv) {
-        // KV 存储不可用，返回默认数据，标记 hasKeys: false
         return new Response(JSON.stringify({
           links: [],
           categories: [],
-          settings: {
-            title: 'HaoNav - 我的导航',
-            navTitle: 'HaoNav',
-            favicon: '',
-            cardStyle: 'detailed'
-          },
+          settings: DEFAULT_SITE_SETTINGS,
           hasKeys: false
         }), {
           headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
       }
 
-      // 读取时间戳
       const timestampRaw = await kv.get('app_data:timestamp', { type: 'text' }).catch(() => null);
 
-      // 如果没有时间戳键，说明是首次部署，返回初始数据并写入KV
       if (timestampRaw === null) {
         const initialSettings = {
-          title: 'HaoNav - 我的导航',
-          navTitle: 'HaoNav',
-          favicon: '',
-          cardStyle: 'detailed',
+          ...DEFAULT_SITE_SETTINGS,
           aiConfig: {
             provider: 'gemini',
             apiKey: '',
@@ -84,22 +69,8 @@ export async function onRequest(context: { request: Request; env: Env }) {
           }
         };
 
-        const initialLinks = [
-          { id: '1', title: 'GitHub', url: 'https://github.com', categoryId: 'dev', createdAt: Date.now(), description: '代码托管平台', pinned: true },
-          { id: '2', title: 'React', url: 'https://react.dev', categoryId: 'dev', createdAt: Date.now(), description: '构建Web用户界面的库' },
-          { id: '3', title: 'Tailwind CSS', url: 'https://tailwindcss.com', categoryId: 'design', createdAt: Date.now(), description: '原子化CSS框架' },
-          { id: '4', title: 'ChatGPT', url: 'https://chat.openai.com', categoryId: 'ai', createdAt: Date.now(), description: 'OpenAI聊天机器人', pinned: true },
-          { id: '5', title: 'Gemini', url: 'https://gemini.google.com', categoryId: 'ai', createdAt: Date.now(), description: 'Google DeepMind AI' },
-        ];
-
-        const initialCategories = [
-          { id: 'common', name: '常用推荐', icon: 'Folder' },
-          { id: 'dev', name: '开发工具', icon: 'LayoutPanelLeft' },
-          { id: 'design', name: '设计资源', icon: 'Palette' },
-          { id: 'read', name: '阅读资讯', icon: 'BookOpen' },
-          { id: 'ent', name: '休闲娱乐', icon: 'Gamepad2' },
-          { id: 'ai', name: '人工智能', icon: 'Bot' },
-        ];
+        const initialLinks = INITIAL_LINKS;
+        const initialCategories = DEFAULT_CATEGORIES;
 
         const timestamp = Date.now();
 
@@ -125,7 +96,6 @@ export async function onRequest(context: { request: Request; env: Env }) {
         });
       }
 
-      // 有时间戳键，读取所有数据
       const timestamp = parseInt(timestampRaw || '0', 10);
 
       const [linksRaw, categoriesRaw, settingsRaw, iconsRaw] = await Promise.all([
@@ -150,7 +120,6 @@ export async function onRequest(context: { request: Request; env: Env }) {
         data.settings = settingsData;
       }
 
-      // 将图标数据合并到 links 中
       if (iconsData && data.links) {
         data.links = data.links.map(link => ({
           ...link,
@@ -201,22 +170,18 @@ export async function onRequest(context: { request: Request; env: Env }) {
         });
       }
 
-      // 提取图标数据（从 links 中分离出来）
       const iconsData: Record<string, string> = {};
       (body.links || []).forEach((link: any) => {
-        // 如果是 base64 图标，存到 iconsData 中
         if (link.icon && link.icon.startsWith('data:image')) {
           iconsData[link.id] = link.icon;
         }
       });
 
-      // 移除 icon 字段
       const linksWithoutIcons = (body.links || []).map((link: any) => {
         const { icon, ...rest } = link;
         return rest;
       });
 
-      // 合并 aiConfig 和 searchEngines 到 settings
       const finalSettings = body.settings || {};
       if (body.aiConfig) {
         finalSettings.aiConfig = body.aiConfig;
@@ -225,8 +190,6 @@ export async function onRequest(context: { request: Request; env: Env }) {
         finalSettings.searchEngines = body.searchEngines;
       }
 
-      // 并行写入所有数据，包括时间戳
-      // 使用客户端传入的 timestamp，如果没有则生成新的
       const timestamp = body.timestamp || Date.now();
       console.log('POST 接收到的数据:', {
         timestamp: timestamp,
@@ -260,4 +223,3 @@ export async function onRequest(context: { request: Request; env: Env }) {
 
   return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
 }
-
