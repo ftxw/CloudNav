@@ -69,3 +69,15 @@ export const DEFAULT_SEARCH_ENGINES: SearchEngine[] = [
   { id: 'github', name: 'GitHub', url: 'https://github.com/search?q=', icon: 'https://github.com/favicon.ico' },
   { id: 'bilibili', name: 'B站', url: 'https://search.bilibili.com/all?keyword=', icon: 'https://www.bilibili.com/favicon.ico' },
 ];
+
+// 性能优化配置
+export const PERFORMANCE_CONFIG = {
+  // 是否启用懒加载图标转换
+  LAZY_ICON_CONVERSION: true,
+  // 是否启用增量更新
+  INCREMENTAL_UPDATE: true,
+  // 图标缓存时间（毫秒）
+  ICON_CACHE_DURATION: 24 * 60 * 60 * 1000, // 24小时
+  // 是否跳过 base64 转换，直接使用 URL
+  SKIP_BASE64_CONVERSION: false,
+};

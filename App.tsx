@@ -552,6 +552,10 @@ function App() {
     }
   };
 
+  // 防抖同步到云端，避免频繁请求
+  let syncTimeout: NodeJS.Timeout | null = null;
+  let pendingSyncData: { links: LinkItem[]; categories: Category[]; settings: SiteSettings; timestamp: number } | null = null;
+
   const updateData = (newLinks: LinkItem[], newCategories: Category[], newSettings: SiteSettings = siteSettings) => {
       // 生成新的 timestamp，确保本次更新的时间戳
       const newTimestamp = Date.now();
@@ -566,8 +570,8 @@ function App() {
           document.title = newSettings.title;
       }
 
-      // 立即更新本地缓存，不阻塞 UI
-      requestAnimationFrame(() => {
+      // 异步更新本地缓存，不阻塞 UI
+      setTimeout(() => {
           const dataToSave = {
               links: newLinks,
               categories: newCategories,
@@ -575,11 +579,27 @@ function App() {
               timestamp: newTimestamp
           };
           localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(dataToSave));
-      });
+      }, 0);
 
-      // 异步同步到云端，不阻塞 UI（无论用户是否登录都尝试同步）
-      // 使用新的 timestamp，确保云端和本地时间戳一致
-      syncToCloudWithTimestamp(newLinks, newCategories, newSettings, authToken || '', newTimestamp);
+      // 防抖云同步：延迟 1 秒再同步，避免频繁请求
+      if (syncTimeout) {
+          clearTimeout(syncTimeout);
+      }
+
+      pendingSyncData = { links: newLinks, categories: newCategories, settings: newSettings, timestamp: newTimestamp };
+
+      syncTimeout = setTimeout(() => {
+          if (pendingSyncData) {
+              syncToCloudWithTimestamp(
+                  pendingSyncData.links,
+                  pendingSyncData.categories,
+                  pendingSyncData.settings,
+                  authToken || '',
+                  pendingSyncData.timestamp
+              );
+              pendingSyncData = null;
+          }
+      }, 1000); // 1秒防抖
   };
 
   useEffect(() => {

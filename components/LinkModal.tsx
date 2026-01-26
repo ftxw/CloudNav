@@ -165,39 +165,26 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
         // 编辑模式下，如果图标 URL 为空，则保留原有图标
         let iconToSave = initialData && !iconUrl ? initialData.icon : iconUrl;
 
-        console.log('保存前的图标:', {
-            isEdit: !!initialData,
-            iconUrl: iconUrl,
-            initialIcon: initialData?.icon,
-            iconToSave: iconToSave
-        });
-
-        // 如果有新的图标 URL,先转换为 base64
-        if (iconToSave && iconToSave.startsWith('http')) {
-            console.log('检测到 HTTP 图标 URL,开始转换...');
-            iconToSave = await convertIconToBase64(iconToSave);
-
-            // 如果转换失败（返回的仍然是 http URL），保留原始 URL 而不是清空
-            // 这样至少图标还能正常显示，虽然不是 base64
-            if (iconToSave && iconToSave.startsWith('http')) {
-                console.warn('图标转换失败，保留原始 URL:', iconToSave.substring(0, 50));
-                // 不清空，保留原始 URL
-            } else {
-                console.log('图标转换成功,base64 长度:', iconToSave?.length);
-            }
-        } else {
-            console.log('无需转换图标,类型:', iconToSave?.substring(0, 20));
-        }
-
+        // 不等待转换，立即保存原始 URL，提升保存速度
         const saveData = { title, url, description, categoryId, pinned, icon: iconToSave };
-        console.log('准备保存的数据:', saveData);
-
         await onSave(saveData);
 
-        // 确保 onSave 完成后再关闭模态框
-        requestAnimationFrame(() => {
-            onClose();
-        });
+        // 立即关闭模态框，提升用户体验
+        onClose();
+
+        // 后台异步转换图标为 base64（不阻塞 UI）
+        if (iconToSave && iconToSave.startsWith('http')) {
+            // 延迟 500ms 执行，避免与主保存冲突
+            setTimeout(() => {
+                convertIconToBase64(iconToSave).then(base64Icon => {
+                    if (base64Icon && base64Icon.startsWith('data:image')) {
+                        // 转换成功，触发再次保存更新图标
+                        const updatedData = { title, url, description, categoryId, pinned, icon: base64Icon };
+                        onSave(updatedData);
+                    }
+                }).catch(err => console.error('图标转换失败:', err));
+            }, 500);
+        }
     } finally {
         setIsSaving(false);
     }
