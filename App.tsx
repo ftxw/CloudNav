@@ -380,15 +380,28 @@ function App() {
       try {
         const parsed = JSON.parse(stored);
         const linksData = parsed.links || INITIAL_LINKS;
+
+        console.log('从 localStorage 加载数据:', {
+            linksCount: linksData.length,
+            sampleLink: linksData[0] ? {
+                id: linksData[0].id,
+                title: linksData[0].title,
+                icon: linksData[0].icon ? linksData[0].icon.substring(0, 30) + '...' : '无',
+                iconType: linksData[0].icon?.startsWith('data:image') ? 'base64' : 'URL'
+            } : '无链接'
+        });
+
         // 直接使用云端返回的图标数据，不再使用本地缓存
         setLinks(linksData);
         setCategories(parsed.categories || DEFAULT_CATEGORIES);
         if (parsed.settings) setSiteSettings(prev => ({ ...prev, ...parsed.settings }));
       } catch (e) {
+        console.error('加载本地数据失败:', e);
         setLinks(INITIAL_LINKS);
         setCategories(DEFAULT_CATEGORIES);
       }
     } else {
+      console.log('localStorage 中没有数据,使用默认值');
       setLinks(INITIAL_LINKS);
       setCategories(DEFAULT_CATEGORIES);
     }
@@ -497,6 +510,18 @@ function App() {
 
   const syncToCloud = async (newLinks: LinkItem[], newCategories: Category[], newSettings: SiteSettings, token: string) => {
     setSyncStatus('saving');
+
+    const sampleLink = newLinks[0];
+    console.log('准备同步到云端:', {
+        linksCount: newLinks.length,
+        sampleLink: sampleLink ? {
+            id: sampleLink.id,
+            title: sampleLink.title,
+            icon: sampleLink.icon ? sampleLink.icon.substring(0, 30) + '...' : '无',
+            iconType: sampleLink.icon?.startsWith('data:image') ? 'base64' : 'URL'
+        } : '无链接'
+    });
+
     try {
         const response = await fetch('/api/storage', {
             method: 'POST',
@@ -562,6 +587,7 @@ function App() {
       requestAnimationFrame(() => {
           const dataToSave = { links: newLinks, categories: newCategories, settings: newSettings };
           localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(dataToSave));
+          console.log('数据已保存到 localStorage,链接数量:', newLinks.length);
       });
 
       // 异步同步到云端，不阻塞 UI（无论用户是否登录都尝试同步）
@@ -611,6 +637,7 @@ function App() {
 
                 // 对比时间戳，如果不一致则使用云端数据
                 if (cloudTimestamp !== localTimestamp) {
+                    console.log('从云端加载新数据,timestamp:', cloudTimestamp);
                     setLinks(cloudData.links || []);
                     setCategories(cloudData.categories || []);
                     const settings = cloudData.settings || {
@@ -633,9 +660,10 @@ function App() {
                         localStorage.setItem(SEARCH_ENGINES_KEY, JSON.stringify(DEFAULT_SEARCH_ENGINES.filter(e => e.id !== 'local')));
                     }
                     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cloudData));
-                    cacheMissingIcons(cloudData.links || []);
+                    // 不再调用 cacheMissingIcons，因为图标应该在保存时就已经转换为 base64
                 } else {
                     // 时间戳一致，使用本地缓存
+                    console.log('使用本地缓存数据,timestamp:', localTimestamp);
                     loadFromLocal();
                 }
                 setDataLoaded(true);
@@ -902,6 +930,13 @@ function App() {
       newLink.pinnedOrder = maxPinnedOrder + 1;
     }
 
+    console.log('添加新链接:', {
+        id: newLink.id,
+        title: newLink.title,
+        icon: newLink.icon ? newLink.icon.substring(0, 30) + '...' : '无',
+        iconType: newLink.icon?.startsWith('data:image') ? 'base64' : 'URL'
+    });
+
     // 直接保存,图标已经在 LinkModal 中转换为 base64
     updateData([newLink, ...links], categories);
     setPrefillLink(undefined);
@@ -931,6 +966,13 @@ function App() {
             return newLink;
         }
         return l;
+    });
+
+    const updatedLink = updated.find(l => l.id === editingLink.id);
+    console.log('编辑链接:', {
+        id: editingLink.id,
+        icon: updatedLink?.icon ? updatedLink.icon.substring(0, 30) + '...' : '无',
+        iconType: updatedLink?.icon?.startsWith('data:image') ? 'base64' : 'URL'
     });
 
     // 直接保存,图标已经在 LinkModal 中转换为 base64

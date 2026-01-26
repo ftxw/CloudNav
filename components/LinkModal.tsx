@@ -8,24 +8,35 @@ import { generateLinkDescription, suggestCategory } from '../services/geminiServ
 const convertIconToBase64 = async (iconUrl: string): Promise<string> => {
     if (!iconUrl) return '';
 
+    console.log('开始转换图标:', iconUrl);
+
     // 如果已经是 base64 格式,直接返回
     if (iconUrl.startsWith('data:image')) {
+        console.log('图标已经是 base64 格式');
         return iconUrl;
     }
 
     // 如果不是 HTTP/HTTPS URL,直接返回原值
     if (!iconUrl.startsWith('http://') && !iconUrl.startsWith('https://')) {
+        console.log('图标不是 HTTP URL,直接返回');
         return iconUrl;
     }
 
     try {
         const response = await fetch(`/api/icon?url=${encodeURIComponent(iconUrl)}`);
+        console.log('图标转换响应状态:', response.status);
+
         if (!response.ok) {
+            console.error('图标转换失败,状态码:', response.status);
             return iconUrl;
         }
+
         const data = await response.json();
+        console.log('图标转换结果:', data.dataUrl ? '成功' : '失败');
+
         return data.dataUrl || iconUrl;
     } catch (e) {
+        console.error('图标转换异常:', e);
         return iconUrl;
     }
 };
@@ -127,12 +138,33 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
         // 编辑模式下，如果图标 URL 为空，则保留原有图标
         let iconToSave = initialData && !iconUrl ? initialData.icon : iconUrl;
 
+        console.log('保存前的图标:', {
+            isEdit: !!initialData,
+            iconUrl: iconUrl,
+            initialIcon: initialData?.icon,
+            iconToSave: iconToSave
+        });
+
         // 如果有新的图标 URL,先转换为 base64
         if (iconToSave && iconToSave.startsWith('http')) {
+            console.log('检测到 HTTP 图标 URL,开始转换...');
             iconToSave = await convertIconToBase64(iconToSave);
+
+            // 如果转换失败（返回的仍然是 http URL），清空图标
+            if (iconToSave && iconToSave.startsWith('http')) {
+                console.warn('图标转换失败，将使用默认图标');
+                iconToSave = '';
+            } else {
+                console.log('图标转换成功,base64 长度:', iconToSave?.length);
+            }
+        } else {
+            console.log('无需转换图标,类型:', iconToSave?.substring(0, 20));
         }
 
-        await onSave({ title, url, description, categoryId, pinned, icon: iconToSave });
+        const saveData = { title, url, description, categoryId, pinned, icon: iconToSave };
+        console.log('准备保存的数据:', saveData);
+
+        await onSave(saveData);
 
         // 确保 onSave 完成后再关闭模态框
         requestAnimationFrame(() => {
