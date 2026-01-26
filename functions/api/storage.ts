@@ -226,7 +226,14 @@ export async function onRequest(context: { request: Request; env: Env }) {
       }
 
       // 并行写入所有数据，包括时间戳
-      const timestamp = Date.now();
+      // 使用客户端传入的 timestamp，如果没有则生成新的
+      const timestamp = body.timestamp || Date.now();
+      console.log('POST 接收到的数据:', {
+        timestamp: timestamp,
+        linksCount: body.links?.length,
+        hasIcons: Object.keys(iconsData).length > 0
+      });
+
       await Promise.all([
         kv.put('app_data:timestamp', String(timestamp)),
         kv.put('app_data:links', JSON.stringify(linksWithoutIcons)),
@@ -235,7 +242,9 @@ export async function onRequest(context: { request: Request; env: Env }) {
         Object.keys(iconsData).length > 0 ? kv.put('app_data:icons', JSON.stringify(iconsData)) : Promise.resolve()
       ]);
 
-      return new Response(JSON.stringify({ success: true }), {
+      console.log('POST 保存成功,返回 timestamp:', timestamp);
+
+      return new Response(JSON.stringify({ success: true, timestamp }), {
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     } catch (err) {
