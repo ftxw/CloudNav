@@ -585,9 +585,18 @@ function App() {
 
       // 立即更新本地缓存，不阻塞 UI
       requestAnimationFrame(() => {
-          const dataToSave = { links: newLinks, categories: newCategories, settings: newSettings };
+          // 保留现有的 timestamp，避免从云端重新加载数据
+          const localDataStr = localStorage.getItem(LOCAL_STORAGE_KEY);
+          const existingTimestamp = localDataStr ? (JSON.parse(localDataStr).timestamp || Date.now()) : Date.now();
+
+          const dataToSave = {
+              links: newLinks,
+              categories: newCategories,
+              settings: newSettings,
+              timestamp: existingTimestamp
+          };
           localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(dataToSave));
-          console.log('数据已保存到 localStorage,链接数量:', newLinks.length);
+          console.log('数据已保存到 localStorage,链接数量:', newLinks.length, 'timestamp:', existingTimestamp);
       });
 
       // 异步同步到云端，不阻塞 UI（无论用户是否登录都尝试同步）
@@ -637,7 +646,11 @@ function App() {
 
                 // 对比时间戳，如果不一致则使用云端数据
                 if (cloudTimestamp !== localTimestamp) {
-                    console.log('从云端加载新数据,timestamp:', cloudTimestamp);
+                    console.log('时间戳不一致,从云端加载新数据', {
+                        cloudTimestamp,
+                        localTimestamp,
+                        cloudLinksCount: cloudData.links?.length
+                    });
                     setLinks(cloudData.links || []);
                     setCategories(cloudData.categories || []);
                     const settings = cloudData.settings || {
@@ -663,7 +676,7 @@ function App() {
                     // 不再调用 cacheMissingIcons，因为图标应该在保存时就已经转换为 base64
                 } else {
                     // 时间戳一致，使用本地缓存
-                    console.log('使用本地缓存数据,timestamp:', localTimestamp);
+                    console.log('时间戳一致,使用本地缓存数据,timestamp:', localTimestamp);
                     loadFromLocal();
                 }
                 setDataLoaded(true);
