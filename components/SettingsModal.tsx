@@ -412,7 +412,14 @@ async function saveLink(title, url, categoryId, icon = '') {
 
     if (!icon) {
         try {
-            icon = "https://favicon.org.cn/get.php?url=" + encodeURIComponent(url) + "&size=128&key=usr-09b4268ccbf0b297611dc1a02fde7f739eec7ac3";
+            // 提取域名
+            let normalizedUrl = url;
+            if (!url.startsWith('http')) {
+                normalizedUrl = 'https://' + url;
+            }
+            const urlObj = new URL(normalizedUrl);
+            const domain = urlObj.hostname;
+            icon = `https://favicon.im/zh/${domain}/?larger=true`;
         } catch(e){}
     }
 

@@ -452,7 +452,7 @@ function App() {
     // 收集所有的图标转换任务
     const tasks = [];
     for (const link of linksToCache) {
-      if (link.icon && link.icon.includes('favicon.org.cn')) {
+      if (link.icon && link.icon.includes('favicon.im')) {
         tasks.push(
           new Promise(resolve => setTimeout(resolve, 300)) // 增加延迟避免请求过快
             .then(() => cacheIconForLink(link.icon))
@@ -732,7 +732,7 @@ function App() {
   useEffect(() => {
       if (dataLoaded && links.length > 0) {
           const linksToCache = links.filter(l =>
-              l.icon && l.icon.includes('favicon.org.cn')
+              l.icon && l.icon.includes('favicon.im')
           );
           if (linksToCache.length > 0) {
               cacheMissingIcons(linksToCache);

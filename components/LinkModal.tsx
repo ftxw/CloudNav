@@ -120,8 +120,12 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
             normalizedUrl = 'https://' + targetUrl;
         }
 
-        // Use favicon.org.cn API
-        const newIcon = `https://favicon.org.cn/get.php?url=${encodeURIComponent(normalizedUrl)}&size=128&key=usr-09b4268ccbf0b297611dc1a02fde7f739eec7ac3`;
+        // 提取域名
+        const urlObj = new URL(normalizedUrl);
+        const domain = urlObj.hostname;
+
+        // 使用 favicon.im API
+        const newIcon = `https://favicon.im/zh/${domain}/?larger=true`;
 
         setIconUrl(newIcon);
       } catch (e) {

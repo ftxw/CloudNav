@@ -67,13 +67,13 @@ const SearchSettingsModal: React.FC<SearchSettingsModalProps> = ({
         if (!targetUrl.startsWith('http')) {
             normalizedUrl = 'https://' + targetUrl;
         }
-        
-        // 尝试解析域名
-        const urlObj = new URL(normalizedUrl);
-        const origin = urlObj.origin;
 
-        // 使用 favicon.org.cn API
-        const newIconUrl = `https://favicon.org.cn/get.php?url=${encodeURIComponent(normalizedUrl)}&size=128&key=usr-09b4268ccbf0b297611dc1a02fde7f739eec7ac3`;
+        // 提取域名
+        const urlObj = new URL(normalizedUrl);
+        const domain = urlObj.hostname;
+
+        // 使用 favicon.im API
+        const newIconUrl = `https://favicon.im/zh/${domain}/?larger=true`;
 
         setNewIcon(newIconUrl);
       } catch (e) {
