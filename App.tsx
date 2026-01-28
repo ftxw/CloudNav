@@ -933,9 +933,33 @@ function App() {
     let existingLink: LinkItem | undefined;
 
     if (isSecondSave && urlToFind) {
-        // 第二次保存：从 links 中查找最新的链接（可能已经被用户置顶）
+        // 第二次保存：先从 links 中查找最新的链接（可能已经被用户置顶）
         existingLink = links.find(l => l.url === urlToFind);
         console.log('[handleAddLink] 第二次保存，从 links 中查找链接，结果:', existingLink ? { id: existingLink.id, pinned: existingLink.pinned, pinnedOrder: existingLink.pinnedOrder } : '未找到');
+
+        // 如果 links 中找不到，从 recentAddedLinksRef 中查找（可能 togglePin 后 links 状态还未更新）
+        if (!existingLink) {
+            const refLink = recentAddedLinksRef.current.get(urlToFind);
+            if (refLink) {
+                console.log('[handleAddLink] 从 recentAddedLinksRef 中找到链接:', { id: refLink.id, pinned: refLink.pinned, pinnedOrder: refLink.pinnedOrder });
+                existingLink = links.find(l => l.id === refLink.id);
+                // 如果还是找不到，创建一个临时对象
+                if (!existingLink) {
+                    existingLink = {
+                        id: refLink.id,
+                        url: refLink.url,
+                        title: data.title,
+                        description: data.description,
+                        categoryId: data.categoryId,
+                        icon: data.icon,
+                        pinned: refLink.pinned,
+                        pinnedOrder: refLink.pinnedOrder,
+                        createdAt: Date.now()
+                    };
+                    console.log('[handleAddLink] 创建临时链接对象用于更新');
+                }
+            }
+        }
     } else {
         // 第一次保存或普通保存
         // 首先检查 recentAddedLinksRef，因为 links 状态可能还未更新
