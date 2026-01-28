@@ -934,6 +934,7 @@ function App() {
 
     if (isSecondSave && urlToFind) {
         // 第二次保存：先从 links 中查找最新的链接（可能已经被用户置顶）
+        console.log('[handleAddLink] 第二次保存，当前 links 数量:', links.length);
         existingLink = links.find(l => l.url === urlToFind);
         console.log('[handleAddLink] 第二次保存，从 links 中查找链接，结果:', existingLink ? { id: existingLink.id, pinned: existingLink.pinned, pinnedOrder: existingLink.pinnedOrder } : '未找到');
 
@@ -945,6 +946,7 @@ function App() {
                 existingLink = links.find(l => l.id === refLink.id);
                 // 如果还是找不到，创建一个临时对象
                 if (!existingLink) {
+                    console.log('[handleAddLink] 从 links 中按 ID 也找不到，创建临时链接对象用于更新');
                     existingLink = {
                         id: refLink.id,
                         url: refLink.url,
@@ -956,7 +958,7 @@ function App() {
                         pinnedOrder: refLink.pinnedOrder,
                         createdAt: Date.now()
                     };
-                    console.log('[handleAddLink] 创建临时链接对象用于更新');
+                    console.log('[handleAddLink] 创建临时链接对象用于更新，ID:', existingLink.id);
                 }
             }
         }
@@ -1013,8 +1015,17 @@ function App() {
     // 更新链接列表
     let updatedLinks: LinkItem[];
     if (existingLink) {
-        // 更新现有链接
-        updatedLinks = links.map(l => l.id === existingLink.id ? newLink : l);
+        // 检查 existingLink 是否真的存在于 links 中（不是临时创建的）
+        const linkInLinks = links.find(l => l.id === existingLink.id);
+        if (linkInLinks) {
+            // 更新现有链接
+            console.log('[handleAddLink] 更新现有链接，ID:', existingLink.id);
+            updatedLinks = links.map(l => l.id === existingLink.id ? newLink : l);
+        } else {
+            // existingLink 是临时对象，links 中不存在，添加新链接
+            console.log('[handleAddLink] existingLink 不在 links 中，添加新链接，ID:', existingLink.id);
+            updatedLinks = [newLink, ...links];
+        }
     } else {
         // 添加新链接
         updatedLinks = [newLink, ...links];
