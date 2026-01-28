@@ -922,16 +922,29 @@ function App() {
       alert(`成功导入 ${newLinks.length} 个新书签!`);
   };
 
-  const handleAddLink = async (data: Omit<LinkItem, 'id' | 'createdAt'>) => {
+  const handleAddLink = async (data: Omit<LinkItem, 'id' | 'createdAt'> & { __isSecondSave?: boolean; __urlToFind?: string }) => {
     console.log('[handleAddLink] 接收到数据:', { ...data, icon: data.icon?.substring(0, 50) });
     console.log('[handleAddLink] recentAddedLinksRef:', Array.from(recentAddedLinksRef.current.values()));
 
-    // 首先检查 recentAddedLinksRef，因为 links 状态可能还未更新
-    let existingLink = recentAddedLinksRef.current.get(data.url);
-    if (!existingLink) {
-        existingLink = links.find(l => l.url === data.url);
+    // 检查是否是第二次保存（图标转换后的保存）
+    const isSecondSave = (data as any).__isSecondSave;
+    const urlToFind = (data as any).__urlToFind;
+
+    let existingLink: LinkItem | undefined;
+
+    if (isSecondSave && urlToFind) {
+        // 第二次保存：从 links 中查找最新的链接（可能已经被用户置顶）
+        existingLink = links.find(l => l.url === urlToFind);
+        console.log('[handleAddLink] 第二次保存，从 links 中查找链接，结果:', existingLink ? { id: existingLink.id, pinned: existingLink.pinned, pinnedOrder: existingLink.pinnedOrder } : '未找到');
+    } else {
+        // 第一次保存或普通保存
+        // 首先检查 recentAddedLinksRef，因为 links 状态可能还未更新
+        existingLink = recentAddedLinksRef.current.get(data.url);
+        if (!existingLink) {
+            existingLink = links.find(l => l.url === data.url);
+        }
+        console.log('[handleAddLink] 查找已存在的链接:', existingLink ? { id: existingLink.id, pinned: existingLink.pinned, pinnedOrder: existingLink.pinnedOrder } : '未找到');
     }
-    console.log('[handleAddLink] 查找已存在的链接:', existingLink ? { id: existingLink.id, pinned: existingLink.pinned, pinnedOrder: existingLink.pinnedOrder } : '未找到');
 
     // 创建或更新链接
     let newLink: LinkItem;
@@ -1070,6 +1083,18 @@ function App() {
           if (l.id === id) {
               const updatedLink = { ...l, pinned: newPinned, pinnedOrder };
               console.log('[togglePin] 更新后的链接:', { id: updatedLink.id, pinned: updatedLink.pinned, pinnedOrder: updatedLink.pinnedOrder });
+
+              // 同时更新 recentAddedLinksRef 中的记录
+              if (recentAddedLinksRef.current.has(updatedLink.url)) {
+                  recentAddedLinksRef.current.set(updatedLink.url, {
+                      id: updatedLink.id,
+                      url: updatedLink.url,
+                      pinned: updatedLink.pinned,
+                      pinnedOrder: updatedLink.pinnedOrder
+                  });
+                  console.log('[togglePin] 已更新 recentAddedLinksRef:', updatedLink.url);
+              }
+
               return updatedLink;
           }
           return l;
@@ -2348,7 +2373,7 @@ function App() {
 
       <LinkModal
         isOpen={isModalOpen}
-        onClose={() => { setIsModalOpen(false); setEditingLink(undefined); setPrefillLink(undefined); setDefaultCategoryId(undefined); recentAddedLinksRef.current.clear(); }}
+        onClose={() => { setIsModalOpen(false); setEditingLink(undefined); setPrefillLink(undefined); setDefaultCategoryId(undefined); }}
         onSave={editingLink ? handleEditLink : handleAddLink}
         categories={categories}
         existingLinks={links}

@@ -170,12 +170,11 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
         const saveData = { title, url, description, categoryId, pinned, icon: iconToSave };
         console.log('[LinkModal 第一次保存] 保存数据:', { ...saveData, icon: saveData.icon?.substring(0, 50) });
 
-        // 调用保存并获取返回的新链接ID
+        // 调用保存
         await onSave(saveData);
 
-        // 记录这次保存产生的链接ID（通过URL匹配）
-        // 注意：这里假设保存后立即可以从 existingLinks 中找到最新添加的链接
-        // 但这个方案不可靠，因为 links 是异步更新的
+        // 记录当前 URL，用于第二次保存时识别同一个链接
+        setFirstSavedLinkId(url);
 
         // 立即关闭模态框，提升用户体验
         onClose();
@@ -190,29 +189,18 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
                         console.log('[LinkModal 图标转换成功] initialData 存在:', !!initialData);
                         console.log('[LinkModal 第二次保存] firstSavedLinkId:', firstSavedLinkId);
 
-                        // 对于新添加的链接（initialData 不存在），需要从 existingLinks 中查找最新的链接
+                        // 对于新添加的链接（initialData 不存在），传递 URL 让 handleAddLink 查找
                         // 以保留用户在图标加载期间设置的置顶状态
-                        let updatedData;
-                        if (!initialData && existingLinks) {
-                            const existingLink = existingLinks.find(l => l.url === url);
-                            if (existingLink) {
-                                console.log('[LinkModal 第二次保存] 找到已存在的链接，保留 pinned 和 pinnedOrder:', {
-                                    pinned: existingLink.pinned,
-                                    pinnedOrder: existingLink.pinnedOrder
-                                });
-                                updatedData = {
-                                    ...existingLink,
-                                    icon: base64Icon
-                                };
-                            } else {
-                                updatedData = { title, url, description, categoryId, pinned, icon: base64Icon };
-                            }
-                        } else {
-                            // 编辑模式：保留 initialData 的所有字段（包括 pinnedOrder）
-                            updatedData = initialData
-                                ? { ...initialData, title, url, description, categoryId, pinned, icon: base64Icon }
-                                : { title, url, description, categoryId, pinned, icon: base64Icon };
-                        }
+                        const updatedData = {
+                            title,
+                            url,
+                            description,
+                            categoryId,
+                            pinned,
+                            icon: base64Icon,
+                            __isSecondSave: true, // 标记这是第二次保存
+                            __urlToFind: url // 传递 URL 用于查找现有链接
+                        };
 
                         console.log('[LinkModal 第二次保存] 保存数据:', {
                             ...updatedData,
