@@ -85,6 +85,7 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
   const [isGenerating, setIsGenerating] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState('');
   const [isSaving, setIsSaving] = useState(false); // 添加保存状态
+  const [firstSavedLinkId, setFirstSavedLinkId] = useState<string | null>(null); // 记录第一次保存的链接ID
 
   // 预览图标：编辑时显示原有图标，添加时显示当前 iconUrl（如果有的话）
   const previewIcon = initialData ? (iconUrl || initialData.icon) : iconUrl;
@@ -168,7 +169,13 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
         // 不等待转换，立即保存原始 URL，提升保存速度
         const saveData = { title, url, description, categoryId, pinned, icon: iconToSave };
         console.log('[LinkModal 第一次保存] 保存数据:', { ...saveData, icon: saveData.icon?.substring(0, 50) });
+
+        // 调用保存并获取返回的新链接ID
         await onSave(saveData);
+
+        // 记录这次保存产生的链接ID（通过URL匹配）
+        // 注意：这里假设保存后立即可以从 existingLinks 中找到最新添加的链接
+        // 但这个方案不可靠，因为 links 是异步更新的
 
         // 立即关闭模态框，提升用户体验
         onClose();
@@ -181,6 +188,7 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
                 convertIconToBase64(iconToSave).then(base64Icon => {
                     if (base64Icon && base64Icon.startsWith('data:image')) {
                         console.log('[LinkModal 图标转换成功] initialData 存在:', !!initialData);
+                        console.log('[LinkModal 第二次保存] firstSavedLinkId:', firstSavedLinkId);
                         // 转换成功，触发再次保存更新图标
                         // 编辑模式：保留 initialData 的所有字段（包括 pinnedOrder）
                         const updatedData = initialData

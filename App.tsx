@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   DndContext,
@@ -18,6 +19,9 @@ import {
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+
+// 追踪最近添加的链接信息，用于处理图标转换后的第二次保存
+const recentAddedLinksRef = useRef<Map<string, { id: string; url: string; pinned: boolean; pinnedOrder: number | undefined }>>(new Map());
 import {
   Search, Plus, Upload, Moon, Sun, Menu,
   Trash2, Edit2, Loader2, Cloud, CheckCircle2, AlertCircle, AlertTriangle,
@@ -918,12 +922,14 @@ function App() {
 
   const handleAddLink = async (data: Omit<LinkItem, 'id' | 'createdAt'>) => {
     console.log('[handleAddLink] 接收到数据:', { ...data, icon: data.icon?.substring(0, 50) });
+    console.log('[handleAddLink] recentAddedLinksRef:', Array.from(recentAddedLinksRef.current.values()));
 
-    // 查找是否已存在相同 URL 的链接（用于处理第二次保存：图标转换后）
-    const existingLink = links.find(l => l.url === data.url);
-    console.log('[handleAddLink] 当前 links 数量:', links.length);
+    // 首先检查 recentAddedLinksRef，因为 links 状态可能还未更新
+    let existingLink = recentAddedLinksRef.current.get(data.url);
+    if (!existingLink) {
+        existingLink = links.find(l => l.url === data.url);
+    }
     console.log('[handleAddLink] 查找已存在的链接:', existingLink ? { id: existingLink.id, pinned: existingLink.pinned, pinnedOrder: existingLink.pinnedOrder } : '未找到');
-    console.log('[handleAddLink] 当前所有链接:', links.map(l => ({ id: l.id, url: l.url, pinned: l.pinned, pinnedOrder: l.pinnedOrder })));
 
     // 创建或更新链接
     let newLink: LinkItem;
@@ -973,10 +979,17 @@ function App() {
     } else {
         // 添加新链接
         updatedLinks = [newLink, ...links];
+        // 记录到 recentAddedLinksRef，供第二次保存使用
+        recentAddedLinksRef.current.set(data.url, {
+            id: newLink.id,
+            url: data.url,
+            pinned: newLink.pinned,
+            pinnedOrder: newLink.pinnedOrder
+        });
+        console.log('[handleAddLink] 已记录到 recentAddedLinksRef:', data.url);
     }
 
     console.log('[handleAddLink] 最终 newLink:', { id: newLink.id, pinned: newLink.pinned, pinnedOrder: newLink.pinnedOrder });
-    console.log('[handleAddLink] 更新后的链接列表:', updatedLinks.map(l => ({ id: l.id, url: l.url, pinned: l.pinned, pinnedOrder: l.pinnedOrder })));
     console.log('[handleAddLink] 更新后的链接列表，置顶链接数量:', updatedLinks.filter(l => l.pinned).length);
 
     // 直接保存,图标已经在 LinkModal 中转换为 base64
@@ -2330,9 +2343,10 @@ function App() {
         </div>
       </main>
 
+
       <LinkModal
         isOpen={isModalOpen}
-        onClose={() => { setIsModalOpen(false); setEditingLink(undefined); setPrefillLink(undefined); setDefaultCategoryId(undefined); }}
+        onClose={() => { setIsModalOpen(false); setEditingLink(undefined); setPrefillLink(undefined); setDefaultCategoryId(undefined); recentAddedLinksRef.current.clear(); }}
         onSave={editingLink ? handleEditLink : handleAddLink}
         categories={categories}
         existingLinks={links}
