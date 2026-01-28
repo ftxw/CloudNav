@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   DndContext,
@@ -19,9 +20,6 @@ import {
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-
-// 追踪最近添加的链接信息，用于处理图标转换后的第二次保存
-const recentAddedLinksRef = useRef<Map<string, { id: string; url: string; pinned: boolean; pinnedOrder: number | undefined }>>(new Map());
 import {
   Search, Plus, Upload, Moon, Sun, Menu,
   Trash2, Edit2, Loader2, Cloud, CheckCircle2, AlertCircle, AlertTriangle,
@@ -69,6 +67,10 @@ function App() {
     simple: 'p-2',
     detailed: 'p-3'
   };
+
+  // --- Refs ---
+  // 追踪最近添加的链接信息，用于处理图标转换后的第二次保存
+  const recentAddedLinksRef = useRef<Map<string, { id: string; url: string; pinned: boolean; pinnedOrder: number | undefined }>>(new Map());
 
   // --- State ---
   const [links, setLinks] = useState<LinkItem[]>([]);
