@@ -189,11 +189,31 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
                     if (base64Icon && base64Icon.startsWith('data:image')) {
                         console.log('[LinkModal 图标转换成功] initialData 存在:', !!initialData);
                         console.log('[LinkModal 第二次保存] firstSavedLinkId:', firstSavedLinkId);
-                        // 转换成功，触发再次保存更新图标
-                        // 编辑模式：保留 initialData 的所有字段（包括 pinnedOrder）
-                        const updatedData = initialData
-                            ? { ...initialData, title, url, description, categoryId, pinned, icon: base64Icon }
-                            : { title, url, description, categoryId, pinned, icon: base64Icon };
+
+                        // 对于新添加的链接（initialData 不存在），需要从 existingLinks 中查找最新的链接
+                        // 以保留用户在图标加载期间设置的置顶状态
+                        let updatedData;
+                        if (!initialData && existingLinks) {
+                            const existingLink = existingLinks.find(l => l.url === url);
+                            if (existingLink) {
+                                console.log('[LinkModal 第二次保存] 找到已存在的链接，保留 pinned 和 pinnedOrder:', {
+                                    pinned: existingLink.pinned,
+                                    pinnedOrder: existingLink.pinnedOrder
+                                });
+                                updatedData = {
+                                    ...existingLink,
+                                    icon: base64Icon
+                                };
+                            } else {
+                                updatedData = { title, url, description, categoryId, pinned, icon: base64Icon };
+                            }
+                        } else {
+                            // 编辑模式：保留 initialData 的所有字段（包括 pinnedOrder）
+                            updatedData = initialData
+                                ? { ...initialData, title, url, description, categoryId, pinned, icon: base64Icon }
+                                : { title, url, description, categoryId, pinned, icon: base64Icon };
+                        }
+
                         console.log('[LinkModal 第二次保存] 保存数据:', {
                             ...updatedData,
                             icon: updatedData.icon?.substring(0, 50),
