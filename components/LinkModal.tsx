@@ -85,7 +85,6 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
   const [isGenerating, setIsGenerating] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState('');
   const [isSaving, setIsSaving] = useState(false); // 添加保存状态
-  const [firstSavedLinkId, setFirstSavedLinkId] = useState<string | null>(null); // 记录第一次保存的链接ID
 
   // 预览图标：编辑时显示原有图标，添加时显示当前 iconUrl（如果有的话）
   const previewIcon = initialData ? (iconUrl || initialData.icon) : iconUrl;
@@ -173,9 +172,6 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
         // 调用保存
         await onSave(saveData);
 
-        // 记录当前 URL，用于第二次保存时识别同一个链接
-        setFirstSavedLinkId(url);
-
         // 立即关闭模态框，提升用户体验
         onClose();
 
@@ -187,7 +183,6 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
                 convertIconToBase64(iconToSave).then(base64Icon => {
                     if (base64Icon && base64Icon.startsWith('data:image')) {
                         console.log('[LinkModal 图标转换成功] initialData 存在:', !!initialData);
-                        console.log('[LinkModal 第二次保存] firstSavedLinkId:', firstSavedLinkId);
 
                         // 对于新添加的链接（initialData 不存在），传递 URL 让 handleAddLink 查找
                         // 以保留用户在图标加载期间设置的置顶状态
