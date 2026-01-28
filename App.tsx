@@ -917,7 +917,7 @@ function App() {
   };
 
   const handleAddLink = async (data: Omit<LinkItem, 'id' | 'createdAt'>) => {
-    // 查找是否已存在相同 URL 的链接（用于处理第二次保存）
+    // 查找是否已存在相同 URL 的链接（用于处理第二次保存：图标转换后）
     const existingLink = links.find(l => l.url === data.url);
 
     // 创建或更新链接
@@ -926,7 +926,9 @@ function App() {
         // 如果存在，更新它（第二次保存场景：图标已转换）
         newLink = {
             ...existingLink,
-            ...data
+            ...data,
+            // 如果 data 中没有 pinnedOrder，保留 existingLink 的 pinnedOrder
+            pinnedOrder: data.pinnedOrder !== undefined ? data.pinnedOrder : existingLink.pinnedOrder
         };
     } else {
         // 创建新链接
