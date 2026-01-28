@@ -179,7 +179,10 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
                 convertIconToBase64(iconToSave).then(base64Icon => {
                     if (base64Icon && base64Icon.startsWith('data:image')) {
                         // 转换成功，触发再次保存更新图标
-                        const updatedData = { title, url, description, categoryId, pinned, icon: base64Icon };
+                        // 编辑模式：保留 initialData 的所有字段（包括 pinnedOrder）
+                        const updatedData = initialData
+                            ? { ...initialData, title, url, description, categoryId, pinned, icon: base64Icon }
+                            : { title, url, description, categoryId, pinned, icon: base64Icon };
                         onSave(updatedData);
                     }
                 }).catch(err => console.error('图标转换失败:', err));

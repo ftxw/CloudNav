@@ -917,22 +917,46 @@ function App() {
   };
 
   const handleAddLink = async (data: Omit<LinkItem, 'id' | 'createdAt'>) => {
-    // 创建新链接
-    const newLink: LinkItem = {
-      ...data,
-      id: Date.now().toString(),
-      createdAt: Date.now()
-    };
-    // 如果是置顶链接，设置初始 pinnedOrder
-    if (newLink.pinned) {
-      const maxPinnedOrder = links.reduce((max, link) => {
-          return link.pinned && link.pinnedOrder !== undefined ? Math.max(max, link.pinnedOrder) : max;
-      }, -1);
-      newLink.pinnedOrder = maxPinnedOrder + 1;
+    // 查找是否已存在相同 URL 的链接（用于处理第二次保存）
+    const existingLink = links.find(l => l.url === data.url);
+
+    // 创建或更新链接
+    let newLink: LinkItem;
+    if (existingLink) {
+        // 如果存在，更新它（第二次保存场景：图标已转换）
+        newLink = {
+            ...existingLink,
+            ...data
+        };
+    } else {
+        // 创建新链接
+        newLink = {
+            ...data,
+            id: Date.now().toString(),
+            createdAt: Date.now()
+        };
+        // 如果是置顶链接，设置初始 pinnedOrder
+        if (newLink.pinned && newLink.pinnedOrder === undefined) {
+            const maxPinnedOrder = links.reduce((max, link) => {
+                return link.pinned && link.pinnedOrder !== undefined ? Math.max(max, link.pinnedOrder) : max;
+            }, -1);
+            newLink.pinnedOrder = maxPinnedOrder + 1;
+        }
+    }
+
+    // 更新链接列表
+    let updatedLinks: LinkItem[];
+    if (existingLink) {
+        // 更新现有链接
+        updatedLinks = links.map(l => l.id === existingLink.id ? newLink : l);
+    } else {
+        // 添加新链接
+        updatedLinks = [newLink, ...links];
     }
 
     // 直接保存,图标已经在 LinkModal 中转换为 base64
-    updateData([newLink, ...links], categories);
+    updateData(updatedLinks, categories);
+    setPrefillLink(undefined);
     setPrefillLink(undefined);
   };
 
