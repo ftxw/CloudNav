@@ -917,21 +917,29 @@ function App() {
   };
 
   const handleAddLink = async (data: Omit<LinkItem, 'id' | 'createdAt'>) => {
+    console.log('[handleAddLink] 接收到数据:', { ...data, icon: data.icon?.substring(0, 50) });
+
     // 查找是否已存在相同 URL 的链接（用于处理第二次保存：图标转换后）
     const existingLink = links.find(l => l.url === data.url);
+    console.log('[handleAddLink] 查找已存在的链接:', existingLink ? { id: existingLink.id, pinned: existingLink.pinned, pinnedOrder: existingLink.pinnedOrder } : '未找到');
 
     // 创建或更新链接
     let newLink: LinkItem;
     if (existingLink) {
         // 如果存在，更新它（第二次保存场景：图标已转换）
+        console.log('[handleAddLink] 更新已存在的链接');
+        console.log('[handleAddLink] data.pinnedOrder:', data.pinnedOrder);
+        console.log('[handleAddLink] existingLink.pinnedOrder:', existingLink.pinnedOrder);
         newLink = {
             ...existingLink,
             ...data,
             // 如果 data 中没有 pinnedOrder，保留 existingLink 的 pinnedOrder
             pinnedOrder: data.pinnedOrder !== undefined ? data.pinnedOrder : existingLink.pinnedOrder
         };
+        console.log('[handleAddLink] 合并后的 newLink.pinnedOrder:', newLink.pinnedOrder);
     } else {
         // 创建新链接
+        console.log('[handleAddLink] 创建新链接');
         newLink = {
             ...data,
             id: Date.now().toString(),
@@ -943,6 +951,7 @@ function App() {
                 return link.pinned && link.pinnedOrder !== undefined ? Math.max(max, link.pinnedOrder) : max;
             }, -1);
             newLink.pinnedOrder = maxPinnedOrder + 1;
+            console.log('[handleAddLink] 为新置顶链接设置 pinnedOrder:', newLink.pinnedOrder);
         }
     }
 
@@ -956,9 +965,11 @@ function App() {
         updatedLinks = [newLink, ...links];
     }
 
+    console.log('[handleAddLink] 最终 newLink:', { id: newLink.id, pinned: newLink.pinned, pinnedOrder: newLink.pinnedOrder });
+    console.log('[handleAddLink] 更新后的链接列表，置顶链接数量:', updatedLinks.filter(l => l.pinned).length);
+
     // 直接保存,图标已经在 LinkModal 中转换为 base64
     updateData(updatedLinks, categories);
-    setPrefillLink(undefined);
     setPrefillLink(undefined);
   };
 

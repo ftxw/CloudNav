@@ -167,6 +167,7 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
 
         // 不等待转换，立即保存原始 URL，提升保存速度
         const saveData = { title, url, description, categoryId, pinned, icon: iconToSave };
+        console.log('[LinkModal 第一次保存] 保存数据:', { ...saveData, icon: saveData.icon?.substring(0, 50) });
         await onSave(saveData);
 
         // 立即关闭模态框，提升用户体验
@@ -174,15 +175,22 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, categori
 
         // 后台异步转换图标为 base64（不阻塞 UI）
         if (iconToSave && iconToSave.startsWith('http')) {
+            console.log('[LinkModal] 开始异步转换图标');
             // 延迟 500ms 执行，避免与主保存冲突
             setTimeout(() => {
                 convertIconToBase64(iconToSave).then(base64Icon => {
                     if (base64Icon && base64Icon.startsWith('data:image')) {
+                        console.log('[LinkModal 图标转换成功] initialData 存在:', !!initialData);
                         // 转换成功，触发再次保存更新图标
                         // 编辑模式：保留 initialData 的所有字段（包括 pinnedOrder）
                         const updatedData = initialData
                             ? { ...initialData, title, url, description, categoryId, pinned, icon: base64Icon }
                             : { title, url, description, categoryId, pinned, icon: base64Icon };
+                        console.log('[LinkModal 第二次保存] 保存数据:', {
+                            ...updatedData,
+                            icon: updatedData.icon?.substring(0, 50),
+                            pinnedOrder: updatedData.pinnedOrder
+                        });
                         onSave(updatedData);
                     }
                 }).catch(err => console.error('图标转换失败:', err));
