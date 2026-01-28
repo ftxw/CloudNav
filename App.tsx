@@ -921,22 +921,24 @@ function App() {
 
     // 查找是否已存在相同 URL 的链接（用于处理第二次保存：图标转换后）
     const existingLink = links.find(l => l.url === data.url);
+    console.log('[handleAddLink] 当前 links 数量:', links.length);
     console.log('[handleAddLink] 查找已存在的链接:', existingLink ? { id: existingLink.id, pinned: existingLink.pinned, pinnedOrder: existingLink.pinnedOrder } : '未找到');
+    console.log('[handleAddLink] 当前所有链接:', links.map(l => ({ id: l.id, url: l.url, pinned: l.pinned, pinnedOrder: l.pinnedOrder })));
 
     // 创建或更新链接
     let newLink: LinkItem;
     if (existingLink) {
         // 如果存在，更新它（第二次保存场景：图标已转换）
         console.log('[handleAddLink] 更新已存在的链接');
-        console.log('[handleAddLink] data.pinnedOrder:', data.pinnedOrder);
-        console.log('[handleAddLink] existingLink.pinnedOrder:', existingLink.pinnedOrder);
+        console.log('[handleAddLink] data.pinned:', data.pinned, 'data.pinnedOrder:', data.pinnedOrder);
+        console.log('[handleAddLink] existingLink.pinned:', existingLink.pinned, 'existingLink.pinnedOrder:', existingLink.pinnedOrder);
         newLink = {
             ...existingLink,
             ...data,
             // 如果 data 中没有 pinnedOrder，保留 existingLink 的 pinnedOrder
             pinnedOrder: data.pinnedOrder !== undefined ? data.pinnedOrder : existingLink.pinnedOrder
         };
-        console.log('[handleAddLink] 合并后的 newLink.pinnedOrder:', newLink.pinnedOrder);
+        console.log('[handleAddLink] 合并后的 newLink.pinned:', newLink.pinned, 'pinnedOrder:', newLink.pinnedOrder);
     } else {
         // 创建新链接
         console.log('[handleAddLink] 创建新链接');
@@ -952,6 +954,8 @@ function App() {
             }, -1);
             newLink.pinnedOrder = maxPinnedOrder + 1;
             console.log('[handleAddLink] 为新置顶链接设置 pinnedOrder:', newLink.pinnedOrder);
+        } else {
+            console.log('[handleAddLink] 新链接未置顶或已有 pinnedOrder, pinned:', newLink.pinned, 'pinnedOrder:', newLink.pinnedOrder);
         }
     }
 
@@ -966,6 +970,7 @@ function App() {
     }
 
     console.log('[handleAddLink] 最终 newLink:', { id: newLink.id, pinned: newLink.pinned, pinnedOrder: newLink.pinnedOrder });
+    console.log('[handleAddLink] 更新后的链接列表:', updatedLinks.map(l => ({ id: l.id, url: l.url, pinned: l.pinned, pinnedOrder: l.pinnedOrder })));
     console.log('[handleAddLink] 更新后的链接列表，置顶链接数量:', updatedLinks.filter(l => l.pinned).length);
 
     // 直接保存,图标已经在 LinkModal 中转换为 base64
