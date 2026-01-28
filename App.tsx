@@ -932,12 +932,18 @@ function App() {
         console.log('[handleAddLink] 更新已存在的链接');
         console.log('[handleAddLink] data.pinned:', data.pinned, 'data.pinnedOrder:', data.pinnedOrder);
         console.log('[handleAddLink] existingLink.pinned:', existingLink.pinned, 'existingLink.pinnedOrder:', existingLink.pinnedOrder);
+
+        // 关键修复：不要覆盖用户手动设置的置顶状态
+        // 如果 existingLink 是置顶的，但 data 中未置顶，保留 existingLink 的置顶状态
+        const shouldPreservePinned = existingLink.pinned && !data.pinned;
         newLink = {
             ...existingLink,
             ...data,
-            // 如果 data 中没有 pinnedOrder，保留 existingLink 的 pinnedOrder
-            pinnedOrder: data.pinnedOrder !== undefined ? data.pinnedOrder : existingLink.pinnedOrder
+            // 保留置顶状态和 pinnedOrder
+            pinned: shouldPreservePinned ? true : data.pinned,
+            pinnedOrder: shouldPreservePinned ? existingLink.pinnedOrder : (data.pinnedOrder !== undefined ? data.pinnedOrder : existingLink.pinnedOrder)
         };
+        console.log('[handleAddLink] shouldPreservePinned:', shouldPreservePinned);
         console.log('[handleAddLink] 合并后的 newLink.pinned:', newLink.pinned, 'pinnedOrder:', newLink.pinnedOrder);
     } else {
         // 创建新链接
@@ -1030,6 +1036,8 @@ function App() {
       if (!link) return;
 
       const newPinned = !link.pinned;
+      console.log('[togglePin] 切换置顶状态:', { id, url: link.url, oldPinned: link.pinned, newPinned });
+
       let pinnedOrder: number | undefined;
       if (newPinned) {
           // 如果是从未置顶变为置顶，设置 pinnedOrder
@@ -1037,12 +1045,17 @@ function App() {
               return l.pinned && l.pinnedOrder !== undefined ? Math.max(max, l.pinnedOrder) : max;
           }, -1);
           pinnedOrder = maxPinnedOrder + 1;
+          console.log('[togglePin] 设置 pinnedOrder:', pinnedOrder);
+      } else {
+          console.log('[togglePin] 清除 pinnedOrder');
       }
 
       // 直接调用 updateData，避免重复渲染导致闪烁
       const updated = links.map(l => {
           if (l.id === id) {
-              return { ...l, pinned: newPinned, pinnedOrder };
+              const updatedLink = { ...l, pinned: newPinned, pinnedOrder };
+              console.log('[togglePin] 更新后的链接:', { id: updatedLink.id, pinned: updatedLink.pinned, pinnedOrder: updatedLink.pinnedOrder });
+              return updatedLink;
           }
           return l;
       });
